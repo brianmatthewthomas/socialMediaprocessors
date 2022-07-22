@@ -37,8 +37,10 @@ The tool is not set to delete the files extract from the twitter ZIP archive. It
 `*.json.metadata`: If metadata creation is selected, this the metadata file generated. Agencies are not required to generate metadata but still may find it useful. It is an XML format.
 
 `*[image of video format] extention`: The media associated with a specific tweet based on what was added to twitter at the time of upload. Media file is named based on the twitter ID for the file, which is how they store the files, rather than the original file name.
+## twitter_wall_tool.py
+This script is meant to be run on the command line and will output a twitter wall feed using the data extracted from the twitter archive. It works by crawling the data extracted so if something is missing from this wall that means it is missing from the data extraction process. Note that some older images are no longer available on the twitter website for unknown reasons.
 
 ## `twitter_backlog.py`
-The original twitter backlog processor and uploader tool developer for TSLAC use. Depends upon some credentials files for twitter's API as well as for logging into TSLAC's preservation system for uploading tweets. Agencies do not use. 
+The original twitter backlog processor and uploader tool developed for TSLAC use. Depends upon some credentials files for twitter's API as well as for logging into TSLAC's preservation system for uploading tweets. Agencies do not use. 
 ## `upload_backlog.py`
-Used for uploading backlog social media under the auspices of the twitter_backlog.py tool. This is a workhorse customized to TSLAC.  It does not contain anything restricted but should not be used outside of TSLAC without adaption. Presumes Preservica as the preservation system. 
+Used for uploading backlog social media under the auspices of the twitter_backlog.py tool. This is a workhorse customized to TSLAC.  It does not contain anything restricted but should not be used outside of TSLAC without adaptation. Presumes Preservica as the preservation system. 
