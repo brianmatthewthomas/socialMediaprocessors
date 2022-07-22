@@ -108,7 +108,7 @@ for dirpath, dirnames, filenames in os.walk(backlog):
         if filename.endswith(".json"):
             current_year = filename.split("-")[0]
             if current_year != year:
-                tweet_text = tweet_text + f'''<article class="tweet"><h2 style="text-align:center" id="{current_year}">{current_year}</h2><br/>
+                tweet_text = tweet_text + f'''<article class="tweet" style="border:2px solid orangered;border-radius:10px"><h2 style="text-align:center" id="{current_year}">{current_year}</h2><br/>
                 <a href="#tweets">return to top</a></article>'''
                 year_list.add(current_year)
                 year = current_year
