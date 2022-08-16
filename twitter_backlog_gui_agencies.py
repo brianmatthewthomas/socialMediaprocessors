@@ -10,6 +10,7 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
+import twitter_wall_tool
 
 
 def create_directory(fileName):
@@ -78,6 +79,10 @@ layout = [
         sg.Input("", size=(50, 1), visible=False, key="-CITATION-")
     ],
     [
+        sg.Checkbox("Generate wall too?", checkbox_color="dark green", tooltip="Checking this box will generate a html page emulating a twitter wall which can be used to review or validate content",
+                    key="-WALL-", enable_events=True)
+    ],
+    [
         sg.Text("")
     ],
     [
@@ -125,6 +130,7 @@ while True:
     metadata_generator = values['-METADATA-']
     metadata_creator = values['-CREATOR-']
     metadata_citation = values['-CITATION-']
+    wall = values['-WALL-']
     if metadata_generator is True:
         window['-MOREMETADATA-'].update(visible=True)
         window['-CREATOR_TEXT-'].update(visible=True)
@@ -401,6 +407,9 @@ while True:
                         f.write(item + "\n")
                 f.close()
             # twitter_backlog(valuables)
+            if wall is True:
+                window['-OUTPUT-'].update("\ngenerating twitter wall html page", append=True)
+                twitter_wall_tool.wall_tool(target_folder)
             window['-OUTPUT-'].update("\nall done, click on Close to exit", append=True)
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",

@@ -22,7 +22,8 @@ from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
-
+import twitter_wall_tool
+import twitter_wall_tool
 GB = 1024 ** 3
 transfer_config = TransferConfig(multipart_threshold=1 * GB)
 
@@ -474,6 +475,10 @@ layout = [
         sg.Input("Social Media Test", size=(50, 1), key="-CITATION-")
     ],
     [
+        sg.Checkbox("Generate wall too?", checkbox_color="dark green", tooltip="Checking this box will generate a html page emulating a twitter wall which can be used to review or validate content",
+                    key="-WALL-", enable_events=True)
+    ],
+    [
         sg.Text("")
     ],
     [
@@ -524,6 +529,7 @@ while True:
     parentFolder = values['-PARENT-']
     collectionName = values['-CITATION-']
     version = values['-PreservicaVersion-']
+    wall = values['-WALL-']
     if event == "Execute":
         upload_list = set()
         year_list = set()
@@ -895,7 +901,9 @@ while True:
                     window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
                 except:
                     continue
-
+            if wall is True:
+                window['-OUTPUT-'].update("\ngenerating twitter wall html page", append=True)
+                twitter_wall_tool.wall_tool(target_folder)
             # twitter_backlog(valuables)
             window['-OUTPUT-'].update("\nall done, click on Close to exit", append=True)
         else:
