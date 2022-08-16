@@ -43,4 +43,7 @@ This script is meant to be run on the command line and will output a twitter wal
 ## `twitter_backlog.py`
 The original twitter backlog processor and uploader tool developed for TSLAC use. Depends upon some credentials files for twitter's API as well as for logging into TSLAC's preservation system for uploading tweets. Agencies do not use. 
 ## `upload_backlog.py`
-Used for uploading backlog social media under the auspices of the twitter_backlog.py tool. This is a workhorse customized to TSLAC.  It does not contain anything restricted but should not be used outside of TSLAC without adaptation. Presumes Preservica as the preservation system. 
+Used for uploading backlog social media under the auspices of the twitter_backlog.py tool. This is a workhorse customized to TSLAC.  It does not contain anything restricted but should not be used outside of TSLAC without adaptation. Presumes Preservica as the preservation system.
+
+## `twitter_backlog_gui_tslac.py`
+The more complicated tool used by TSLAC for both processing a twitter download file and uploading it to the Texas Digital Archive. Set up based on the assumption of using the Preservica digital preservation system. Improves upload the `twitter_backlog` and `upload_backlog` processes.

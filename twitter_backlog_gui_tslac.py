@@ -2,6 +2,7 @@ import PySimpleGUI as sg
 import zipfile
 import requests
 import os
+import time
 from os import listdir
 from os.path import isfile, join
 import datetime
@@ -246,10 +247,12 @@ def uploader(valuables):
     user_domain = valuables['prefix']
     bucket = f'{user_tenant.lower()}.package.upload'
     endpoint = f'https://{user_domain}.preservica.com/api/s3/buckets'
+    print(endpoint)
     print(f'Uploading to Preservica: using s3 bucket {bucket}')
     client = boto3.client('s3', endpoint_url=endpoint, aws_access_key_id=token, aws_secret_access_key="NOT USED",
                           config=Config(s3={'addressing_style': 'path'}))
     sip_name = valuables['compiled_opex']
+    print(sip_name)
     metadata = {'Metadata': {'structuralObjectreference': valuables['parent_uuid']}}
     switch = 0
     while switch != 3:
@@ -398,25 +401,25 @@ layout = [
     [
         sg.Push(),
         sg.Text("twitter zip file"),
-        sg.In("/media/sf_Z_DRIVE/Working/GUIs/twitter-2021-07-24.zip", key="-File-"), #sg.In(size=(50, 1), enable_events=True, key="-File-"),
+        sg.In("", key="-File-"), #sg.In(size=(50, 1), enable_events=True, key="-File-"),
         sg.FileBrowse(file_types=(("zip files only", "*.zip"),))
     ],
     [
         sg.Push(),
         sg.Text("temporary staging location for unprocessed twitter archive"),
-        sg.In("/media/sf_Z_DRIVE/Working/GUIs/backup3", key="-SourceFolder-"), #sg.In(size=(50, 1), enable_events=True, key="-SourceFolder-"),
+        sg.In("", key="-SourceFolder-"), #sg.In(size=(50, 1), enable_events=True, key="-SourceFolder-"),
         sg.FolderBrowse()
     ],
     [
         sg.Push(),
         sg.Text("target location for processed twitter archive"),
-        sg.In("/media/sf_Z_DRIVE/Working/GUIs/extraction4", key="-TargetFolder-"), #sg.In(size=(50, 1), enable_events=True, key="-TargetFolder-"),
+        sg.In("", key="-TargetFolder-"), #sg.In(size=(50, 1), enable_events=True, key="-TargetFolder-"),
         sg.FolderBrowse()
     ],
     [
         sg.Push(),
         sg.Text("upload staging location"),
-        sg.In("/media/sf_Z_DRIVE/Working/GUIs/staging", key="-UploadStaging-"), #sg.In(size=(50, 1), enable_events=True, key="-UploadStaging-"),
+        sg.In("", key="-UploadStaging-"), #sg.In(size=(50, 1), enable_events=True, key="-UploadStaging-"),
         sg.FolderBrowse()
     ],
     [
@@ -425,32 +428,32 @@ layout = [
     [
         sg.Push(),
         sg.Text("Preservica Version:", key="-PreservicaVersion_TEXT-"),
-        sg.Input("6.5", size=(50, 1), key="-PreservicaVersion-")
+        sg.Input("", size=(50, 1), key="-PreservicaVersion-")
     ],
     [
         sg.Push(),
         sg.Text("Username:", key="-USERNAME_TEXT-"),
-        sg.Input("bthomas@tsl.texas.gov", size=(50, 1), key="-USERNAME-")
+        sg.Input("", size=(50, 1), key="-USERNAME-")
     ],
     [
         sg.Push(),
         sg.Text("Password:", key="-PASSWORD_TEXT-"),
-        sg.Input("pr3s3rv1c@", size=(50, 1), key="-PASSWORD-")
+        sg.Input("", size=(50, 1), password_char="#", key="-PASSWORD-")
     ],
     [
         sg.Push(),
         sg.Text("Domain Prefix:", key="-PREFIX_TEXT-"),
-        sg.Input("tsl", size=(50, 1), key="-PREFIX-")
+        sg.Input("", size=(50, 1), key="-PREFIX-")
     ],
     [
         sg.Push(),
         sg.Text("Tenancy abbreviation:", key="-TENANCY_TEXT-"),
-        sg.Input("tsl", size=(50, 1), key="-TENANCY-")
+        sg.Input("", size=(50, 1), key="-TENANCY-")
     ],
     [
         sg.Push(),
         sg.Text("Parent folder UUID", key="-PARENT_TEXT-"),
-        sg.Input("a1672331-a285-49a6-87d4-e34ebfff1e6f", size=(50,0), key="-PARENT-")
+        sg.Input("", size=(50,0), key="-PARENT-")
     ],
     [
         sg.Checkbox("Export Metadata?", checkbox_color="dark green",
@@ -463,7 +466,7 @@ layout = [
     [
         sg.Push(),
         sg.Text("Agency Name/Abbreviation:", key="-CREATOR_TEXT-"),
-        sg.Input("TSLAC", size=(50, 1), key="-CREATOR-")
+        sg.Input("", size=(50, 1), key="-CREATOR-")
     ],
     [
         sg.Push(),
@@ -856,13 +859,42 @@ while True:
                 pax_prep_withXIP(upload_dict)
             for year in year_list:
                 directory = values['-UploadStaging-'] + "/staging/" + year
-                zippy_name = values['-UploadStaging-'] + "/staging/" + year
+                zippy_name = values['-UploadStaging-'] + "/staging/" + year + ".zip"
                 shutil.make_archive(directory,"zip",directory)
                 upload_dict = upload_dict_template
                 upload_dict['parent_uuid'] = year_dict[year]
                 upload_dict['compiled_opex'] = zippy_name
                 upload_dict['asset_id'] = year
-
+                uploader(upload_dict)
+            #clean-up
+            directory_list = set()
+            file_list = set()
+            for dirpath, dirnames, filenames in os.walk(values['-UploadStaging-']):
+                for filename in filenames:
+                    filename = os.path.join(dirpath,filename)
+                    file_list.add(filename)
+                    directory_list.add(dirpath)
+            file_list = list(file_list)
+            file_list.sort()
+            total = len(file_list)
+            counter = 0
+            for item in file_list:
+                os.remove(item)
+                counter += 1
+                window['-Progress-'].update_bar(counter, total)
+                window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
+            time.sleep(5)
+            directory_list = list(directory_list)
+            directory_list.sort()
+            total = len(file_list)
+            counter = 0
+            for item in directory_list:
+                try:
+                    os.removedirs(item)
+                    window['-Progress-'].update_bar(counter, total)
+                    window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
+                except:
+                    continue
 
             # twitter_backlog(valuables)
             window['-OUTPUT-'].update("\nall done, click on Close to exit", append=True)
