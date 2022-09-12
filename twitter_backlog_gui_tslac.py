@@ -23,7 +23,6 @@ from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
 import twitter_wall_tool
-import twitter_wall_tool
 GB = 1024 ** 3
 transfer_config = TransferConfig(multipart_threshold=1 * GB)
 
@@ -242,9 +241,9 @@ def make_opex_directory(valuables):
     uploader(valuables)
 
 def uploader(valuables):
-    token = new_token(valuables['username'], valuables['password'], valuables['tenent'], valuables['prefix'])
+    token = new_token(valuables['username'], valuables['password'], valuables['tenant'], valuables['prefix'])
     print(token)
-    user_tenant = valuables['tenent']
+    user_tenant = valuables['tenant']
     user_domain = valuables['prefix']
     bucket = f'{user_tenant.lower()}.package.upload'
     endpoint = f'https://{user_domain}.preservica.com/api/s3/buckets'
@@ -253,7 +252,10 @@ def uploader(valuables):
     client = boto3.client('s3', endpoint_url=endpoint, aws_access_key_id=token, aws_secret_access_key="NOT USED",
                           config=Config(s3={'addressing_style': 'path'}))
     sip_name = valuables['compiled_opex']
+    print(valuables['parent_uuid'])
     print(sip_name)
+    print(valuables['asset_id'])
+    technical = input("press enter to continue")
     metadata = {'Metadata': {'structuralObjectreference': valuables['parent_uuid']}}
     switch = 0
     while switch != 3:
@@ -263,7 +265,7 @@ def uploader(valuables):
             switch = 3
             print("\n", "upload successful")
         except:
-            print("upload failure, trying again")
+            print("\nupload failure, trying again")
             switch += 1
 
 def make_representation(xip, rep_name, rep_type, path, io_ref, valuables):
@@ -844,7 +846,7 @@ while True:
                                     'asset_description':'',
                                     'username': values['-USERNAME-'],
                                     'password':values['-PASSWORD-'],
-                                    'tenent':values['-TENANCY-'],
+                                    'tenant':values['-TENANCY-'],
                                     'prefix':values['-PREFIX-'],
                                     'custom_type':'Tweet',
                                     'ignore':['.metadata','.db'],
@@ -861,16 +863,16 @@ while True:
                 upload_dict['asset_title'] = item.split("/")[-2]
                 upload_dict['timeframe'] = "staging/" + item.split("/")[-3]
                 upload_dict['metadata_file'] = item + item.split("/")[-2] + ".json.metadata"
-                print(upload_dict)
                 pax_prep_withXIP(upload_dict)
             for year in year_list:
                 directory = values['-UploadStaging-'] + "/staging/" + year
-                zippy_name = values['-UploadStaging-'] + "/staging/" + year + ".zip"
-                shutil.make_archive(directory,"zip",directory)
+                zippy = str(uuid.uuid4())
+                zippy_name = values['-UploadStaging-'] + "/staging/" + zippy
+                shutil.make_archive(zippy_name,"zip",directory)
                 upload_dict = upload_dict_template
                 upload_dict['parent_uuid'] = year_dict[year]
-                upload_dict['compiled_opex'] = zippy_name
-                upload_dict['asset_id'] = year
+                upload_dict['compiled_opex'] = zippy_name + ".zip"
+                upload_dict['asset_id'] = zippy
                 uploader(upload_dict)
             #clean-up
             directory_list = set()
