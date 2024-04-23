@@ -22,6 +22,90 @@ import errno
 import twitter_wall_tool
 
 
+def make_metadata(metadata_dictionary):
+    metadata = Element('dcterms:dcterms',
+                       {'xmlns': 'http://dublincore.org/documents/dcmi-terms/',
+                        'xmlns:dcterms': 'http://dublincore.org/documents/dcmi-terms/',
+                        'xsi:schemaLocation': 'http://dublincore.org/documents/dcmi-terms/ qualifiedDcSchema.xsd',
+                        'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+                        'xmlns:tslac': 'https://www.tsl.texas.gov/'})
+    title = SubElement(metadata, 'dcterms:title')
+    title.text = metadata_dictionary['title']
+    description = SubElement(metadata, "dcterms:description.abstract")
+    description.text = metadata_dictionary['description']
+    if 'agency' in metadata_dictionary.keys():
+        collection_name = SubElement(metadata, 'dcterms:relation.isPartOf')
+        collection_name.text = f"{metadata_dictionary['agency']} social media archive"
+    if 'preferredCitation' in metadata_dictionary.keys():
+        citation = SubElement(metadata, 'dcterms:identifier.bibliographicCitation')
+        citation.text = metadata_dictionary['citation']
+    type1 = SubElement(metadata, 'dcterms:type')
+    type1.text = "Text"
+    creator = SubElement(metadata, 'dcterms:creator')
+    creator.text = metadata_dictionary['creator']
+    date_created = SubElement(metadata, 'dcterms:date.created')
+    date_created.text = metadata_dictionary['create_date']
+    SubElement(metadata, 'dcterms:subject').text = "Social media"
+    subject2 = SubElement(metadata, 'dcterms:subject')
+    subject2.text = metadata_dictionary['platform']
+    if metadata_dictionary['type'] == "Facebook Event":
+        facebook_note = SubElement(metadata, 'tslac:note')
+        facebook_note.text = "Facebook page events data normalized to Twitter data model for access/rending purposes. Post identifier generated based upon timestamp of event beginning and ending, and page identifier. If date event created is unknown, date of creation is defaulted to date of event. Original post json format available on request with user data incorporated for completeness."
+    if metadata_dictionary['type'] == "Facebook Album":
+        facebook_note = SubElement(metadata, "tslac:note")
+        facebook_note.text = "Facebook Album data normalized to Twitter data model for access/rendering purposes. Post identifier generated based upon upload timestamp with each item in the album preserved as a single post and subfoldered into the Album by its date of creation if known and title. Original post json format available on request with user data incorporated for completeness."
+    if metadata_dictionary['type'] == "Facebook Post":
+        facebook_note = SubElement(metadata, "tslac:note")
+        facebook_note.text = "Facebook post data normalized to Twitter data model for access/rendering purposes. Post identifier generated based upon timestamp of the post. Original post in json format available upon requestwith user data incorporated for completeness."
+    social_type = SubElement(metadata, 'tslac:socialmedia.platform')
+    social_type.text = metadata_dictionary['platform']
+    username = SubElement(metadata, 'tslac:socialmedia.username')
+    username.text = metadata_dictionary['username']
+    post_id = SubElement(metadata, 'tslac:socialmedia.identifier')
+    post_id.text = metadata_dictionary['post_id']
+    for item in metadata_dictionary['hashtags']:
+        SubElement(metadata, 'tslac:socialmedia.hashtag').text = item
+    for item in metadata_dictionary['mentions']:
+        SubElement(metadata, 'tslac:socialmedia.mentions').text = item
+    return metadata
+
+def split_hashtag(text_block):
+    tag_list = []
+    my_tags = text_block.split(" #")
+    if len(my_tags) > 1:
+        for item in my_tags[1:]:
+            item = item.split(" ")
+            if len(item[0]) > 1:
+                tag_list.append(item[0])
+    my_tags = text_block.split("\n#")
+    if len(my_tags) > 1:
+        for item in my_tags[1:]:
+            item = item.split(" ")[0]
+            if item not in tag_list:
+                tag_list.append(item)
+    tag_list.sort()
+    return tag_list
+
+def split_mention(text_block):
+    tag_list = []
+    my_tags = text_block.split(" @")
+    if len(my_tags) > 1:
+        for item in my_tags:
+            if item.startswith("["):
+                item = item.split("]")[0]
+                item = item.split(":")[-1]
+                tag_list.append(item)
+    my_tags = text_block.split("\n@")
+    if len(my_tags) > 1:
+        for item in my_tags[1:]:
+            if item.startswith("["):
+                item = item.split("]")[0]
+                item = item.split(":")[-1]
+                if item not in tag_list:
+                    tag_list.append(item)
+    tag_list.sort()
+    return tag_list
+
 def prettify(elem):
     rough_string = ElementTree.tostring(elem, 'utf-8')
     reparse = minidom.parseString(rough_string)
@@ -269,7 +353,7 @@ def create_directory(fileName):
         try:
             os.makedirs(os.path.dirname(fileName), exist_ok=True)
         except OSError as exc:
-            if exc.errno != errno.EExist:
+            if exc.errno != errno.EEXIST:
                 raise
 
 def create_sha256(filename):
@@ -338,7 +422,7 @@ layout = [
     [
         sg.Push(),
         sg.Text("Agency Name/Abbreviation:", key="-CREATOR_TEXT-"),
-        sg.Input("", size=(50, 1), key="-CREATOR-")
+        sg.Input("tslac", size=(50, 1), key="-CREATOR-")
     ],
     [
         sg.Push(),
@@ -759,9 +843,10 @@ while True:
                 # twitter_backlog(valuables)
                 window['-OUTPUT-'].update("\nall done, click on Close to exit", append=True)
             if values['-TYPE_facebook_page-'] is True:
+                my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
                 if os.path.isfile(my_precious):
                     window['-OUTPUT-'].update("facebook archive already extracted, moving on\n", append=True)
-                if not os.path.isdir(my_precious):
+                if not os.path.isfile(my_precious):
                     window['-OUTPUT-'].update("extracting facebook archive for manipulation\n", append=True)
                     crazy = zipfile.ZipFile(target_file)
                     crazy.extractall(source_folder)
@@ -828,9 +913,12 @@ while True:
                 my_precious_posts = f"{source_folder}/this_profile's_activity_across_facebook/posts"
                 my_precious_albums = f"{source_folder}/this_profile's_activity_across_facebook/posts/album"
                 my_precious_events = f"{source_folder}/this_profile's_activity_across_facebook/events"
-                my_precious_posts_list = [f for f in os.listdir(my_precious) if os.path.isfile(f"{my_precious}/{f}") and "facebook_editor" not in f]
+                my_precious_posts_list = [f for f in os.listdir(my_precious_posts) if os.path.isfile(f"{my_precious_posts}/{f}") and "facebook_editor" not in f]
                 my_precious_album_list = [f for f in os.listdir(my_precious_albums) if os.path.isfile(f'{my_precious_albums}/{f}')]
                 my_precious_event_list = ["events.json"]
+                blank_post = {}
+                blank_metadata = {}
+                '''
                 for preciouses in my_precious_event_list:
                     with (open(f"{my_precious_events}/{preciouses}", "r") as backlog):
                         json_data = backlog.read()
@@ -839,20 +927,345 @@ while True:
                         counter = 0
                         total = len(facebook)
                         blank_post = {}
+                        blank_metadata = {}
                         for post in facebook:
                             counter += 1
                             new_post = blank_post
+                            metadata_dictionary = blank_metadata
                             window['-Progress-'].update_bar(counter, total)
+                            text_string = ""
+                            start_timestamp = post['start_timestamp']
+                            end_timestamp = post['end_timestamp']
+                            start_date = f"{str(datetime.datetime.fromtimestamp(start_timestamp))}"
+                            end_date = f"{str(datetime.datetime.fromtimestamp(end_timestamp))}"
+                            date_created = ""
+                            if "create_timestamp" in post.keys():
+                                date_created = str(post['create_timestamp'])
+                                post_id = f"{str(start_date)[:10]}_{date_created}"
+                            if date_created == "":
+                                post_id = f"{str(start_date)[:10]}_{str(start_timestamp)}-{str(end_timestamp)}"
+                                date_created = str(start_date)[:10]
+                            print(post_id)
+                            if post_id not in id_list:
+                                metadata_dictionary['post_id'] = str(post_id)
+                                metadata_dictionary['create_date'] = date_created
+                                start_date_date = start_date.split(" ")
+                                end_date_date = end_date.split(" ")
+                                if start_date_date[0] == end_date_date[0]:
+                                    date_in_title = f"{start_date_date[0]} {start_date_date[1][:-3]} thru {end_date_date[1][:-3]}"
+                                else:
+                                    date_in_title = f"{start_date[:-3]} thru {end_date}"
+                                title = f"{date_in_title}: {post['name']}"
+                                metadata_dictionary['title'] = title
+                                place_name = "unspecified location"
+                                if "place" in post.keys():
+                                    place_name = post['place']['name']
+                                description = "no additional information provided."
+                                if "description" in post.keys():
+                                    description = post['description']
+                                description = f"{post['name']} event at {place_name}: {description}"
+                                metadata_dictionary['description'] = description
+                                metadata_dictionary['type'] = "Facebook events"
+                                metadata_dictionary['platform'] = "Facebook"
+                                metadata_dictionary['agency'] = valuables['agency']
+                                metadata_dictionary['username'] = username
+                                metadata_dictionary['citation'] = f"{title}, {username} page, Facebook, {valuables['preferredCitation']}"
+                                metadata_dictionary['creator'] = username
+                                metadata_dictionary['hashtags'] = []
+                                metadata_dictionary['mentions'] = []
+                                if "#" in description:
+                                    metadata_dictionary['hashtags'] = split_hashtag(description)
+                                if "@" in description:
+                                    metadata_dictionary['mentions'] = split_mention(description)
+                                filepath1 = f"{baseline}/backlog/events/{post_id[:4]}/{post_id}/"
+                                upload_list.add(filepath1)
+                                year_list.add(post_id[:4])
+                                filename = f"{post_id}.txt"
+                                master_post = f"{filepath1}/preservation1/{filename}"
+                                normalized_post = f"{filepath1}/preservation2/{filename}"
+                                if not os.path.exists(os.path.dirname(master_post)):
+                                    create_directory(master_post)
+                                if not os.path.exists(os.path.dirname(normalized_post)):
+                                    create_directory(normalized_post)
+                                post['user'] = user_data
+                                # save the post file for now
+                                master_post_text = json.loads(json.dumps(post))
+                                with open(master_post, "w") as w:
+                                    json.dump(master_post_text, w)
+                                w.close()
+                                os.rename(master_post, f"{master_post[:-3]}json")
+                                if 'attachments' in post.keys():
+                                    for attachment in post['attachments']:
+                                        units = attachment['data']
+                                        for unit in units:
+                                            if "media" in unit.keys():
+                                                mediafile = unit['media']['uri']
+                                                media = mediafile.split("/")[-1]
+                                                source_media = f"{source_folder}/{mediafile}"
+                                                target_media = f"{filepath1}/preservation1/{media}"
+                                                shutil.copy2(source_media, target_media)
+                                                shutil.copystat(source_media, target_media)
+                                if metadata_generator is True:
+                                    metadata_dictionary = make_metadata(metadata_dictionary)
+                                    metadata_file = f"{master_post[:-3]}json.metadata"
+                                    with open(metadata_file, "wt", encoding='utf-8') as w:
+                                        w.write(prettify(metadata_dictionary))
+                                    w.close()
 
                 for preciouses in my_precious_album_list:
                     with open(f"{my_precious_albums}/{preciouses}", "r") as backlog:
                         json_data = backlog.read()
+                        print(f"album {preciouses}")
                         facebook = json.loads(json_data)
+                        counter = 0
+                        total = len(facebook['photos'])
                         blank_post = {}
+                        blank_metadata = {}
+                        # process album post data
+                        new_post = blank_post
+                        metadata_dictionary = blank_metadata
+                        text_string = ""
+                        timestamp = facebook['last_modified_timestamp']
+                        timestamp_translated = f"{str(datetime.datetime.fromtimestamp(timestamp))}"
+                        post_id = f"{str(timestamp_translated)[:10]}_{str(timestamp)}"
+                        date_created = str(timestamp_translated)[:10]
+                        print(post_id)
+                        metadata_dictionary['post_id'] = str(post_id)
+                        metadata_dictionary['create_date'] = date_created
+                        title = f"{date_created}, {facebook['name']} Album cover"
+                        metadata_dictionary['title'] = title
+                        if "description" in facebook.keys():
+                            description = facebook['description']
+                        if description == "":
+                            description = "No description available"
+                        description = f"{title}: {description}"
+                        metadata_dictionary['description'] = description
+                        metadata_dictionary['type'] = "Facebook albums"
+                        metadata_dictionary['platform'] = "Facebook"
+                        metadata_dictionary['agency'] = valuables['agency']
+                        metadata_dictionary['username'] = username
+                        metadata_dictionary['citation'] = f"{title}, {username} page, {valuables['preferredCitation']}"
+                        metadata_dictionary['creator'] = username
+                        metadata_dictionary['hashtags'] = []
+                        metadata_dictionary['mentions'] = []
+                        if "#" in description:
+                            metadata_dictionary['hashtags'] = split_hashtag(description)
+                        if "@" in description:
+                            metadata_dictionary['mentions'] = split_mention(description)
+                        master_filepath = f"{baseline}/backlog/albums/album{preciouses[:-5]}"
+                        master_filepath_metadata = f"{master_filepath}/{master_filepath.split('/')[-1]}.metadata"
+                        if not os.path.exists(os.path.dirname(master_filepath_metadata)):
+                            create_directory(master_filepath_metadata)
+                        master_metadata = metadata_dictionary
+                        master_metadata['title'] = title[:-6]
+                        master_metadata = make_metadata(master_metadata)
+                        with open(master_filepath_metadata, 'wt', encoding='utf-8') as w:
+                            w.write(prettify(master_metadata))
+                        w.close()
+                        album_root_filepath = f"{master_filepath}/{post_id}"
+                        filename = f"{post_id}.txt"
+                        master_post = f"{album_root_filepath}/preservation1/{filename}"
+                        normalized_post = f"{album_root_filepath}/preservation2/{filename}"
+                        if not os.path.exists(os.path.dirname(master_post)):
+                            create_directory(master_post)
+                        if not os.path.exists(os.path.dirname(normalized_post)):
+                            create_directory(normalized_post)
+                        facebook['user'] = user_data
+                        master_post_text = json.loads(json.dumps(facebook))
+                        with open(master_post, "w") as w:
+                            json.dump(master_post_text, w)
+                        w.close()
+                        os.rename(master_post, f"{master_post[:-3]}json")
+                        metadata_dictionary['title'] = title
+                        metadata_dictionary = make_metadata(metadata_dictionary)
+                        metadata_file = f"{master_post[:-3]}json.metadata"
+                        with open(metadata_file, 'wt', encoding='utf-8') as w:
+                            w.write(prettify(metadata_dictionary))
+                        w.close()
+                        if "cover_photo" in facebook.keys():
+                            cover_photo = f"{valuables['source_dir']}/{facebook['cover_photo']['uri']}"
+                            cover_photo_target = f"{album_root_filepath}/preservation1/{facebook['cover_photo']['uri'].split('/')[-1]}"
+                            shutil.copy2(cover_photo, cover_photo_target)
+                            shutil.copystat(cover_photo, cover_photo_target)
+                        posts = facebook['photos']
+                        counter = 0
+                        total = len(posts)
+                        root_post_id = post_id
+                        for post in posts:
+                            counter += 1
+                            new_post = blank_post
+                            metadata_dictionary = blank_metadata
+                            window['-Progress-'].update_bar(counter, total)
+                            post['user'] = user_data
+                            text_string = ""
+                            timestamp = post['creation_timestamp']
+                            date_created = str(datetime.datetime.fromtimestamp(timestamp))[:10]
+                            post_id = f"{date_created}_{str(timestamp)}"
+                            filename = f"{post_id}.txt"
+                            if post_id not in id_list:
+                                master_post = f"{master_filepath}/{post_id}/preservation1/{filename}"
+                                normalized_post = f"{master_filepath}/{post_id}/preservation2/{filename}"
+                                if not os.path.exists(os.path.dirname(master_post)):
+                                    create_directory(master_post)
+                                if not os.path.exists(os.path.dirname(normalized_post)):
+                                    create_directory(normalized_post)
+                                post['user'] = user_data
+                                master_post_text = json.loads(json.dumps(post))
+                                with open(master_post, "w") as w:
+                                    json.dump(master_post_text, w)
+                                w.close()
+                                os.rename(master_post, f"{master_post[:-3]}json")
+                                photo = f"{valuables['source_dir']}/{post['uri']}"
+                                photo_target = f"{master_filepath}/{post_id}/preservation1/{post['uri'].split('/')[-1]}"
+                                shutil.copy2(photo, photo_target)
+                                shutil.copystat(photo, photo_target)
+                                metadata_dictionary['post_id'] = str(post_id)
+                                metadata_dictionary['create_date'] = date_created
+                                title = f"{date_created}, {post['title']} photograph"
+                                metadata_dictionary['title'] = title
+                                description = ""
+                                if "description" in post.keys():
+                                    description = post['description']
+                                if description == "":
+                                    description = "No description available"
+                                description = f"{title}: {description}"
+                                metadata_dictionary['description'] = description
+                                metadata_dictionary['type'] = "Facebook albums"
+                                metadata_dictionary['platform'] = 'Facebook'
+                                metadata_dictionary['agency'] = valuables['agency']
+                                metadata_dictionary['username'] = username
+                                metadata_dictionary['citation'] = f"{title}, {username} page, {valuables['preferredCitation']}"
+                                metadata_dictionary['creator'] = username
+                                metadata_dictionary['hashtags'] = []
+                                metadata_dictionary['mentions'] = []
+                                if "#" in description:
+                                    metadata_dictionary['hashtags'] = split_hashtag(description)
+                                if "@" in description:
+                                    metadata_dictionary['mentions'] = split_mention(description)
+                                master_metadata = f"{master_post[:-3]}json.metadata"
+                                metadata_dictionary = make_metadata(metadata_dictionary)
+                                with open(master_metadata, 'wt', encoding='utf-8') as w:
+                                    w.write(prettify(metadata_dictionary))
+                                w.close()
+                '''
+                # start plain old posts
+                print(my_precious_posts_list)
+                image_list = []
                 for preciouses in my_precious_posts_list:
                     with open(f"{my_precious_posts}/{preciouses}", "r") as backlog:
                         json_data = backlog.read()
                         facebook = json.loads(json_data)
+                        print(type(facebook))
+                        if isinstance(facebook, dict) is True:
+                            print(preciouses)
+                            if "videos_v2" in facebook.keys():
+                                facebook = facebook['videos_v2']
+                                print(facebook[:50])
+
+                            elif "other_photos_v2" in facebook.keys():
+                                facebook = facebook['other_photos_v2']
+                                print(facebook[:50])
+                            for post in facebook:
+                                new_post = blank_post
+                                metadata_dictionary = blank_metadata
+                                text_string = ""
+                                timestamp = post['creation_timestamp']
+                                date_created = str(datetime.datetime.fromtimestamp(timestamp))[:10]
+                                post_id = f"{date_created}_{str(timestamp)}"
+                                if post_id not in id_list:
+                                    filename = f"{post_id}.txt"
+                                    year = date_created[:4]
+                                    master_post = f"{baseline}/backlog/posts/{year}/{post_id}/preservation1/{filename}"
+                                    normalized_post = f"{baseline}/backlog/posts/{year}/{post_id}/presentation2/{filename}"
+                                    if not os.path.exists(os.path.dirname(master_post)):
+                                        create_directory(master_post)
+                                    if not os.path.exists(os.path.dirname(normalized_post)):
+                                        create_directory(normalized_post)
+                                    post['user'] = user_data
+                                    master_post_text = json.loads(json.dumps(post))
+                                    with open(master_post, "w") as w:
+                                        json.dump(master_post_text, w)
+                                    w.close()
+                                    os.rename(master_post, f"{master_post[:-3]}json")
+                                    media = f"{valuables['source_dir']}/{post['uri']}"
+                                    media_filename = post['uri'].split("/")[-1]
+                                    image_list.append(media_filename)
+                                    media_target = f"{baseline}/backlog/posts/{year}/{post_id}/preservation1/{media_filename}"
+                                    shutil.copy2(media, media_target)
+                                    shutil.copystat(media, media_target)
+                                    metadata_dictionary['post_id'] = str(post_id)
+                                    metadata_dictionary['create_date'] = date_created
+                                    title = ""
+                                    if "title" in post.keys():
+                                        if post['title'] != "":
+                                            title = f", {post['title']}"
+                                    title = f"{date_created}: {post_id}{title}"
+                                    metadata_dictionary['title'] = title
+                                    description = ""
+                                    if "description" in post.keys():
+                                        description = post['description']
+                                    if description == "":
+                                        description = "No description available"
+                                    description = f"{title}: {description}"
+                                    metadata_dictionary['description'] = description
+                                    metadata_dictionary['type'] = 'Facebook post'
+                                    metadata_dictionary['platform'] = "Facebook"
+                                    metadata_dictionary['agency'] = valuables['agency']
+                                    metadata_dictionary['username'] = username
+                                    metadata_dictionary['citation'] = f"{title} page, {valuables['preferredCitation']}"
+                                    metadata_dictionary['creator'] = username
+                                    metadata_dictionary['hashtags'] = []
+                                    metadata_dictionary['mentions'] = []
+                                    if "#" in description:
+                                        metadata_dictionary['hashtags'] = split_hashtag(description)
+                                    if "@" in description:
+                                        metadata_dictionary['mentions'] = split_mention(description)
+                                    master_metadata = f"{master_post[:-3]}json.metadata"
+                                    metadata_dictionary = make_metadata(metadata_dictionary)
+                                    with open(master_metadata, 'wt', encoding='utf-8') as w:
+                                        w.write(prettify(metadata_dictionary))
+                                    w.close()
+                        else:
+                            for post in facebook:
+                                new_post = blank_post
+                                metadata_dictionary = blank_metadata
+                                text_string = ""
+                                timestamp = post['timestamp']
+                                date_created = str(datetime.datetime.fromtimestamp(timestamp))[:10]
+                                post_id = f"{date_created}_{str(timestamp)}"
+                                if post_id not in id_list:
+                                    filename = f"{post_id}.txt"
+                                    year = date_created[:4]
+                                    master_post = f"{baseline}/backlog/posts/{year}/{post_id}/preservation1/{filename}"
+                                    normalized_post = f"{baseline}/backlog/posts/{year}/{post_id}/presentation2/{filename}"
+                                    if not os.path.exists(os.path.dirname(master_post)):
+                                        create_directory(master_post)
+                                    if not os.path.exists(os.path.dirname(normalized_post)):
+                                        create_directory(normalized_post)
+                                    post['user'] = user_data
+                                    master_post_text = json.loads(json.dumps(post))
+                                    counters = 0
+                                    description = "No description available"
+                                    if "post" in post['data'][0]:
+                                        description = post['data'][0]['post']
+                                    if "attachments" in post.keys():
+                                        for attachments in post['attachments']:
+                                            attachment = attachments['data']
+                                            for x in attachment:
+                                                if "media" in x.keys():
+                                                    if "description" in x['media'].keys():
+                                                        if x['media']['description'] == "" or x['media']['description'] == description:
+                                                            print(f"{post_id} is awesome")
+
+
+
+
+
+
+
+
+                sys.exit()
+                '''
                         counter = 0
                         total = len(facebook)
                         blank_post = {}
@@ -1072,7 +1485,7 @@ while True:
                         shutil.copystat(filename1, filename2)
                         window['-OUTPUT-'].update(f"{filename1} copied to upload folder\n", append=True)
             print("test works")
-
+'''
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",
                                       font=("Calibri", "12", "bold"))
