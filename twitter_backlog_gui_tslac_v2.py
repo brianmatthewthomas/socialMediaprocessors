@@ -1152,6 +1152,18 @@ while True:
                 print(my_precious_posts_list)
                 image_list = []
                 for preciouses in my_precious_posts_list:
+                    # create listing of images and videos in posts as a pre-processing step
+                    with open(f"{my_precious_posts}/{preciouses}", "r") as backlog:
+                        json_data = backlog.read()
+                        facebook = json.loads(json_data)
+                        if "videos_v2" not in facebook.keys() and "other_photos_v2" not in facebook.keys():
+                            media = f"{valuables['source_dir']}/{post['uri']}"
+                            media_filename = post['uri'].split("/")[-1]
+                            image_list.append(media_filename)
+                    media = f"{valuables['source_dir']}/{post['uri']}"
+                    media_filename = post['uri'].split("/")[-1]
+                    image_list.append(media_filename)
+                for preciouses in my_precious_posts_list:
                     with open(f"{my_precious_posts}/{preciouses}", "r") as backlog:
                         json_data = backlog.read()
                         facebook = json.loads(json_data)
@@ -1165,7 +1177,7 @@ while True:
                             elif "other_photos_v2" in facebook.keys():
                                 facebook = facebook['other_photos_v2']
                                 print(facebook[:50])
-                            for post in facebook:
+                            if post in facebook:
                                 new_post = blank_post
                                 metadata_dictionary = blank_metadata
                                 text_string = ""
@@ -1248,10 +1260,24 @@ while True:
                                     description = "No description available"
                                     if "post" in post['data'][0]:
                                         description = post['data'][0]['post']
+                                    # now sort through attachments types
                                     if "attachments" in post.keys():
                                         for attachments in post['attachments']:
                                             attachment = attachments['data']
                                             for x in attachment:
+                                                if "event" in x.keys():
+                                                    event_name = x['name']
+                                                    event_start = x['start_timestamp']
+                                                    event_end = x['end_timestamp']
+                                                    added_title = post['title']
+                                                    event_date = str(datetime.datetime.fromtimestamp(event_start))[:10]
+                                                    event_text = ""
+                                                    if event_end == 0:
+                                                        event_text = f" beginning at {str(datetime.datetime.fromtimestamp(event_start))}"
+                                                    if str(datetime.datetime.fromtimestamp(event_end))[:10] == event_date:
+                                                        event_text = f" from {event_date} {str(datetime.datetime.fromtimestamp(event_start))[-8:-3]} to {str(datetime.datetime.fromtimestamp(event_end))[-8:-3]}"
+                                                    added_description = f"{added_title}: {event_name}{event_text}: "
+                                                    description = f"{added_description}{description}"
                                                 if "media" in x.keys():
                                                     if "description" in x['media'].keys():
                                                         if x['media']['description'] == "" or x['media']['description'] == description:
