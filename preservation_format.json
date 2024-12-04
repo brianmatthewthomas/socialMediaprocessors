@@ -1,0 +1,61 @@
+{
+	"#comment": "comments are added and will be preceded by a # to differentiate from the actual use of the term comment",
+	"platform": "#comment: e.g. facebook, insta, tikity tok, etc. REQUIRED",
+	"post_type": "#comment: category of a post, such as event vs. generic post vs. story, etc. OPTIONAL but feels like maybe should be required",
+	"post_id": "#comment: plain text post id. if using a scheme to generate a post_id, write the scheme down somewhere for consistency. REQUIRED",
+	"timestamp": "#comment: UTC time code timestamp. convert tex timestamps to UTC time code. REQUIRED",
+	"normalization_comment": "#comment: spot to document where something was creatively done with the data, such as synthesizing a post_id or stripping html from content text. REQUIRED if post data was not copied exactly",
+	"content_text": "#comment: full-text of the post, warts and all. REQUIRED",
+	"user":{
+		"username": "#comment: e.g. brianthomas. REQUIRED",
+		"userid": "#comment: alphanumeric string for the unique user id. REQUIRED",
+		"account_created": "#comment: date hte account was created as a UTCif possible. REQUIREDif available",
+		"friends":["#comment: list of friends each with own data as a sub-dictionary", {"friend_username": "some username", "friend_userid": "some userid"}],
+		"user_location": "#comment: geolocation for the account, not GPS coordinates. OPTIONAL"
+	},
+	"geolocation": {"#comment": "geoloation embedded for the post itself if that exists using geolocation format. OPTIONAL",
+		"latitude": 32.749311111,
+		"longitude": -97.32774166
+	},
+	"media":[
+		"#comment: unlimited list of media files, each list item gets its own sub-dictionary",
+		{
+			"media_type": "#comment: audio, visual, image, etc. REQUIRED",
+			"mimetype": "#comment: like image/jpeg. OPTIONAL",
+			"filename": "#comment: just the filename sans any url. REQUIRED",
+			"file_url": "#comment: url to file location. OPTIONAL",
+			"description": "#comment: added description unique to the media file relative to the overall post, caption, etc. OPTIONAL",
+			"filesize": "#comment: size in bytes. OPTIONAL",
+			"dates": {
+				"created": "#comment: UTC for date of creation. OPTIONAL",
+				"uploaded": "#comment: UTC of upload. OPTIONAL"
+			},
+			"geolocation": {
+				"#comment": "GPS coordinates of the media file. OPTIONAL",
+				"latitude": 32.749311111,
+				"longitude": -97.32774166
+			},
+			"technical": "#comment: dictionary space for exif data if it exists. OPTIONAL"
+		}
+	],
+	"hooks": {
+		"#comment": "structured as a list for the components but dictionary as a whole. REQUIRED structure but lists could be empty",
+		"hashtags": ["#comment: simple list of hastags less the #", "somehashtag", "someotherhashtag"],
+		"mentions": ["#comment: simplie list of mentions less the @ that precedes them", "davethomas", "jackjohnson"],
+		"links": ["#comment: simple list of URLs in the post."]
+	},
+	"engagement": {
+		"#comment": "structured as a list for the components but dictionary as a whole. Should be integers for count, any given name for the thing. OPTIONAL",
+		"likes": 16,
+		"hearts": 61,
+		"dislikes": 73
+	},
+	"relationships": [
+		"#comment: list of relationships with other posts, each relationship is a dictionary type, overal OPTIONAL",
+		{
+			"post_id": "#comment: post id for the related post. OPTIONAL",
+			"username": "#comment: username associated with relationship if not this user. OPTIONAL",
+			"relationship_type": "#comment: stitch, collaboration, reply, repost, etc. If a relationship is to be documented this is REQUIRED"
+		}
+	]
+}
