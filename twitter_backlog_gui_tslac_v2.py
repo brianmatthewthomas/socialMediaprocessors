@@ -20,6 +20,7 @@ from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
 import twitter_wall_tool
+import yt_dlp
 
 
 def make_metadata(metadata_dictionary):
@@ -111,243 +112,6 @@ def prettify(elem):
     reparse = minidom.parseString(rough_string)
     return reparse.toprettyxml(indent="    ")
 
-def pax_prep_withXIP(valuables):
-    # a simpler version of the multi-upload to handle cases where a pax is simply preservation files
-    # unpack the dictionary to individual variables
-    preservation_directory = valuables['preservation_directory']
-    asset_title = valuables['asset_title']
-    parent_uuid = valuables['parent_uuid']
-    asset_tag = valuables['asset_tag']
-    export_dir = valuables['export_directory']
-    # set description, fallback to title if missing from dictionary
-    if valuables['asset_description']:
-        if valuables['asset_description'] != None and valuables['asset_description'] != "":
-            asset_description = valuables['asset_description']
-        else:
-            asset_description = valuables['asset_title']
-    else:
-        asset_description = valuables['asset_title']
-    # initiate creating xml file
-    xip = Element('XIP')
-    xip.set('xmlns', f'http://preservica.com/XIP/v{valuables["version"]}')
-    io = SubElement(xip, 'InformationObject')
-    ref = SubElement(io, 'Ref')
-    ref.text = str(uuid.uuid4())
-    valuables['asset_id'] = ref.text
-    asset_id = valuables['asset_id']
-    title = SubElement(io, 'Title')
-    title.text = asset_title
-    description = SubElement(io, 'Description')
-    description.text = asset_description
-    security = SubElement(io, 'SecurityTag')
-    security.text = asset_tag
-    custom_type = SubElement(io, 'CustomType')
-    if valuables['custom_type']:
-        custom_type.text = valuables['custom_type']
-    else:
-        custom_type.text = ""
-    parent = SubElement(io, 'Parent')
-    parent.text = parent_uuid
-    # copy the files to the export area for processing
-    preservation_representation = os.path.join(export_dir, asset_title, "Representation_Preservation")
-    for dirpath, dirnames, filenames in os.walk(preservation_directory):
-        for filename in filenames:
-            if not filename.endswith(tuple(valuables['ignore'])):
-                filename1 = os.path.join(dirpath, filename)
-                checksum1 = create_sha256(filename1)
-                filename2 = os.path.join(preservation_representation, filename.split(".")[0], filename)
-                create_directory(filename2)
-                shutil.copyfile(filename1, filename2)
-                checksum2 = create_sha256(filename2)
-                if checksum1 == checksum2:
-                    print("copy of", filename, "verified, continuing")
-                else:
-                    print("error in copying of", filename, "... exiting, try again")
-                    sys.exit()
-    # start creating the representations, content objects and bitstreams
-    preservation_refs_dict = {}
-    if preservation_representation:
-        preservation_refs_dict = make_representation(xip, "Preservation", "Preservation", preservation_directory,
-                                                     asset_id, valuables)
-    if preservation_refs_dict:
-        make_content_objects(xip, preservation_refs_dict, asset_id, asset_tag, "", custom_type.text)
-    if preservation_refs_dict:
-        make_generation(xip, preservation_refs_dict, "Preservation1")
-    if preservation_representation:
-        make_bitstream(xip, preservation_refs_dict, preservation_directory, "Preservation1",
-                       preservation_representation, custom_type.text)
-    pax_folder = export_dir + "/" + asset_title
-    # currently unable to get xip to work with preservica ingest, uncomment the 4 lines below if/when it starts working
-    pax_file = pax_folder + "/" + asset_title + ".xip"
-    metadata = open(pax_file, "wt", encoding='utf-8')
-    metadata.write(prettify(xip))
-    metadata.close()
-    tempy = export_dir + "/" + valuables['timeframe']
-    os.makedirs(tempy, exist_ok=True)
-    archive_name = export_dir + "/" + asset_title + ".pax"
-    shutil.make_archive(archive_name, "zip", pax_folder)
-    archive_name = archive_name + ".zip"
-    archive_name2 = archive_name.replace(export_dir, tempy)
-    shutil.move(archive_name, archive_name2)
-    make_opex(valuables, archive_name2)
-
-def make_opex(valuables, filename2):
-    opex = Element('opex:OPEXMetadata', {'xmlns:opex': 'http://www.openpreservationexchange.org/opex/v1.0'})
-    opexTransfer = SubElement(opex, "opex:Transfer")
-    opexSource = SubElement(opexTransfer, "opex:SourceID")
-    opexSource.text = valuables["asset_id"]
-    opexFixities = SubElement(opexTransfer, "opex:Fixities")
-    opexSHA256 = create_sha256(filename2)
-    opexFixity = SubElement(opexFixities, "opex:Fixity", {'type': 'SHA-256', 'value': opexSHA256})
-    opex_properties = SubElement(opex, 'opex:Properties')
-    opex_title = SubElement(opex_properties, 'opex:Title')
-    opex_title.text = valuables['asset_title']
-    opex_description = SubElement(opex_properties, 'opex:Description')
-    if valuables['asset_description'] not in valuables.keys():
-        valuables['asset_description'] = valuables['asset_title']
-    opex_description.text = valuables['asset_description']
-    opex_security = SubElement(opex_properties, 'opex:SecurityDescriptor')
-    opex_security.text = valuables['asset_tag']
-    if 'metadata_file' in valuables.keys():
-        opex_metadata = SubElement(opex, 'opex:DescriptiveMetadata')
-        opex_metadata.text = "This is where the metadata goes"
-    export_file = valuables['export_directory'] + "/" + valuables['timeframe'] + "/" + valuables[
-        'asset_title'] + ".pax.zip.opex"
-    opex_output = open(export_file, "w", encoding='utf-8')
-    opex_output.write(prettify(opex))
-    opex_output.close()
-    if 'metadata_file' in valuables.keys():
-        with open(valuables['metadata_file'], 'r') as f:
-            filedata = f.read()
-            filedata = filedata.replace('<?xml version="1.0" encoding="UTF-8"?>', "")
-            filedata = filedata.replace('<?xml version="1.0" ?>', '')
-            with open(export_file, "r") as r:
-                fileinfo = r.read()
-                fileinfo = fileinfo.replace("This is where the metadata goes", filedata)
-                with open(export_file, "w") as w:
-                    w.write(fileinfo)
-                    w.close()
-
-def make_opex_directory(valuables):
-    export_directory = valuables['export_directory'] + "/" + valuables['timeframe']
-    filelist = []
-    for dirpath, dirnames, filenames in os.walk(export_directory):
-        for filename in filenames:
-            if not filename.endswith(".opex"):
-                filelist.append(filename)
-    opex = Element('opex:OPEXMetadata', {'xmlns:opex': 'http://www.openpreservationexchange.org/opex/v1.0'})
-    opexTransfer = SubElement(opex, "opex:Transfer")
-    opexSource = SubElement(opexTransfer, "opex:SourceID")
-    opexSource.text = str(uuid.uuid4())
-    '''opexManifest = SubElement(opexTransfer, "opex:Manifest")
-    opexFiles = SubElement(opexManifest, "opex:Files")
-    for item in filelist:
-        opexFile = SubElement(opexFiles, "opex:File")
-        opexFile.text = item'''
-    export_file = valuables['export_directory'] + "/" + valuables['timeframe'] + "/" + valuables['timeframe'] + ".opex"
-    opex_output = open(export_file, "w", encoding='utf-8')
-    opex_output.write(prettify(opex))
-    opex_output.close()
-    compiled_opex = valuables['export_directory'] + "/" + valuables['timeframe']
-    shutil.make_archive(compiled_opex, "zip", compiled_opex)
-    compiled_opex = compiled_opex + ".zip"
-    valuables['compiled_opex'] = compiled_opex
-    print("uploading", valuables['timeframe'])
-    valuables['asset_id'] = valuables['timeframe']
-
-def make_representation(xip, rep_name, rep_type, path, io_ref, valuables):
-    representation = SubElement(xip, 'Representation')
-    io_link = SubElement(representation, "InformationObject")
-    io_link.text = io_ref
-    access_name = SubElement(representation, 'Name')
-    access_name.text = rep_name
-    access_type = SubElement(representation, 'Type')
-    access_type.text = rep_type
-    content_objects = SubElement(representation, 'ContentObjects')
-    rep_files = [f for f in listdir(path) if isfile(join(path, f))]
-    rep_files.sort(key=len, reverse=True)
-    refs_dict = {}
-    counter = 0
-    for f in rep_files:
-        if not f.endswith(tuple(valuables['ignore'])):
-            content_object = SubElement(content_objects, 'ContentObject')
-            content_object_ref = str(uuid.uuid4())
-            content_object.text = content_object_ref
-            refs_dict[f] = content_object_ref
-            counter += 1
-    return refs_dict
-
-def make_content_objects(xip, refs_dict, io_ref, tag, content_description, content_type):
-    for filename, ref in refs_dict.items():
-        content_object = SubElement(xip, 'ContentObject')
-        ref_element = SubElement(content_object, 'Ref')
-        ref_element.text = ref
-        title = SubElement(content_object, 'Title')
-        if filename.split(".")[-1] == "srt":
-            title.text = "English"
-        elif filename.endswith(tuple(["mp4", "m4v", "mov"])):
-            title.text = "Movie"
-        elif content_type == "Tweet":
-            placeholder = filename.split("_")
-            for item in placeholder:
-                if len(item) > 11:
-                    item = item.split(".")[0]
-                    filename = filename.replace(item, "{" + item + "}")
-            title.text = filename
-        else:
-            title.text = os.path.splitext(filename)[0]
-        description = SubElement(content_object, "Description")
-        description.text = content_description
-        security_tag = SubElement(content_object, "SecurityTag")
-        security_tag.text = tag
-        custom_type = SubElement(content_object, "CustomType")
-        custom_type.text = content_type
-        parent = SubElement(content_object, "Parent")
-        parent.text = io_ref
-
-def make_generation(xip, refs_dict, generation_label):
-    for filename, ref in refs_dict.items():
-        generation = SubElement(xip, 'Generation', {"original": "true", "active": "true"})
-        content_object = SubElement(generation, "ContentObject")
-        content_object.text = ref
-        label = SubElement(generation, "Label")
-        if generation_label:
-            label.text = generation_label
-        else:
-            label.text = os.path.splitext(filename)[1]
-        effective_date = SubElement(generation, "EffectiveDate")
-        effective_date.text = datetime.datetime.now().isoformat()[:-7] + "Z"
-        bitstreams = SubElement(generation, "Bitstreams")
-        bitstream = SubElement(bitstreams, "Bitstream")
-        bitstream.text = "Representation_" + generation_label[:-1] + "/" + filename.split(".")[0] + "/" + filename
-        SubElement(generation, "Formats")
-        SubElement(generation, "Properties")
-
-def make_bitstream(xip, refs_dict, root_path, generation_label, representation_location, content_type):
-    for filename, ref in refs_dict.items():
-        bitstream = SubElement(xip, "Bitstream")
-        filenameElement = SubElement(bitstream, "Filename")
-        filenameElement.text = filename
-        filesize = SubElement(bitstream, "FileSize")
-        fullPath = os.path.join(root_path, filename)
-        file_stats = os.stat(fullPath)
-        filesize.text = str(file_stats.st_size)
-        physloc = SubElement(bitstream, "PhysicalLocation")
-        physloc.text = "Representation_" + generation_label[:-1] + "/" + filename.split(".")[0]
-        if content_type == "Tweet":
-            placeholder = filename.split("_")
-            for item in placeholder:
-                if len(item) > 11:
-                    item = item.split(".")[0]
-                    turtle = filename.replace(item, "{" + item + "}[tslac]")
-            SubElement(bitstream, 'OriginalFilename').text = turtle
-        fixities = SubElement(bitstream, "Fixities")
-        fixity = SubElement(fixities, "Fixity")
-        fixityAlgorithmRef = SubElement(fixity, "FixityAlgorithmRef")
-        fixityAlgorithmRef.text = "SHA256"
-        fixityValue = SubElement(fixity, "FixityValue")
-        fixityValue.text = create_sha256(fullPath)
-
 def create_directory(fileName):
     if not os.path.exists(os.path.dirname(fileName)):
         try:
@@ -381,23 +145,71 @@ def tweet_media_handler(url, filename):
 def tweet_handler():
     print("something")
 
+def ytdl_formatselector(ctx):
+    formats = ctx.get('formats')[::-1]
+    best_video = next(f for f in formats if f['vcodec'] != 'none' and f['acodec'] == 'none')
+    audio_ext = {'mp4': 'm4a', 'webm': 'webm'}[best_video['ext']]
+    best_audio = next(f for f in formats if (f['acodec'] != 'none' and f['vcodec'] == 'none' and f['ext'] == audio_ext))
+    yield {'format_id': f'{best_video["format_id"]}+{best_audio["format_id"]}',
+           'ext': best_video['ext'],
+           'requested_formats': [best_video, best_audio],
+           'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'}
+
+def youtube_handler(channel_name, options_set, startdate, enddate, target):
+    if startdate == "YYYY-MM-DD":
+        startdate = ""
+    if enddate == "YYYY-MM-DD":
+        enddate = ""
+    if startdate != "" and enddate != "":
+        startdate = startdate.replace("-", "")
+        enddate = enddate.replace("-", "")
+        try:
+            startdate_number = int(startdate)
+            startdate_number - int(enddate)
+        except:
+            window['-OUTPUT-'].update("A non-numeric date was entered for date range, removing this limitation\n", append=True)
+            startdate = ""
+            enddate = ""
+    channel_name = channel_name.replace("example: ", "")
+    ydl_opts = {'writeinfojson': True,
+                'writesubtitles': True,
+                'subtitlesformat': 'vtt',
+                'getcomments': True,
+                'write-description': True,
+                'format': ytdl_formatselector,
+                'download_archive': f"{target}/youtube.txt"}
+    if startdate != "" and enddate != "":
+        ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
+    output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
+    for option in options_set:
+        urls = [f'{channel_name}/{option}']
+        output_template['default'] = f'./{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+        if option == "playlist" or option == "podcasts" or option == "shorts":
+            output_template['default'] = f'./{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+        ydl_opts['outtmpl'] = output_template
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(urls)
+
+
 layout = [
     # [sg.Push(),sg.Titlebar("My Twitter Breaker tool"),sg.Push()],
     [
         sg.Radio("Twitter", group_id="media_type", key='-TYPE_twitter-'),
-        sg.Radio("Facebook page", group_id="media_type", key="-TYPE_facebook_page-")
+        sg.Radio("Facebook page", group_id="media_type", key="-TYPE_facebook_page-"),
+        sg.Radio("YouTube", group_id="media_type", key="-TYPE_youtube-"),
+        sg.Button("Load options")
     ],
     [
         sg.Push(),
-        sg.Text("social media zip file"),
-        sg.In("", key="-File-"), #sg.In(size=(50, 1), enable_events=True, key="-File-"),
-        sg.FileBrowse(file_types=(("zip files only", "*.zip"),))
+        sg.Text("social media zip file", key="-File_Label-", visible=True),
+        sg.In("", key="-File-", visible=True), #sg.In(size=(50, 1), enable_events=True, key="-File-"),
+        sg.FileBrowse(file_types=(("zip files only", "*.zip"),), key="-File_Browse-", visible=True)
     ],
     [
         sg.Push(),
-        sg.Text("temporary staging location for unprocessed social media archive"),
-        sg.In("", key="-SourceFolder-"), #sg.In(size=(50, 1), enable_events=True, key="-SourceFolder-"),
-        sg.FolderBrowse()
+        sg.Text("temporary staging location for unprocessed social media archive", key="-SourceFolder_label-", visible=True),
+        sg.In("", key="-SourceFolder-", visible=True),
+        sg.FolderBrowse(key="-SourceFolder_browse-", visible=True)
     ],
     [
         sg.Push(),
@@ -410,6 +222,36 @@ layout = [
         sg.Text("upload staging location"),
         sg.In("", key="-UploadStaging-"), #sg.In(size=(50, 1), enable_events=True, key="-UploadStaging-"),
         sg.FolderBrowse()
+    ],
+    [
+        sg.Push(),
+        sg.Text("channel url", key="-youtube_channel_label-", visible=False),
+        sg.In(default_text="example: https://www.youtube.com/@TSLAC", visible=False, key="-youtube_channel-"),
+
+    ],
+    [
+        sg.Push(),
+        sg.Text("Choose types to download: ", visible=False, key="-youtube_type_label-"),
+    ],
+    [
+        sg.Push(),
+        sg.Checkbox("videos", visible=False, key='-youtube_type_video-', default=True),
+        sg.Checkbox("shorts", visible=False, key="-youtube_type_shorts-"),
+        sg.Checkbox("lives", visible=False, key="-youtube_type_streams-"),
+        sg.Checkbox("podcasts", visible=False, key="-youtube_type_podcasts-"),
+        sg.Checkbox("playlists", visible=False, key="-youtube_type_playlists-"),
+        sg.Push()
+    ],
+    [
+        sg.Push(),
+        sg.Text("If date range applies", visible=False, key="-youtube_date_label-")
+    ],
+    [
+        sg.Push(),
+        sg.Text("Begin date (yyyy-mm-dd):", visible=False, key="-youtube_date_begin_label-"),
+        sg.In(default_text="YYYY-MM-DD", visible=False, key="-youtube_date_begin-", size=(15, 1)),
+        sg.Text("End date (yyyy-mm-dd):", visible=False, key="-youtube_date_end_label-"),
+        sg.In(default_text="YYYY-MM-DD", visible=False, key="-youtube_date_end-", size=(15, 1))
     ],
     [
         sg.Checkbox("Export Metadata?", checkbox_color="dark green",
@@ -459,7 +301,7 @@ layout = [
     ],
     [
         sg.Multiline(default_text="Click execute to show progress\n------------------------------\n", size=(100, 6),
-                     auto_refresh=True, reroute_stdout=False, key="-OUTPUT-", autoscroll=True, border_width=5),
+                     auto_refresh=True, reroute_stdout=True, key="-OUTPUT-", autoscroll=True, border_width=5),
     ],
 ]
 
@@ -475,9 +317,49 @@ event, values = window.read()
 
 while True:
     event, values = window.read()
-    target_file = "/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #values['-File-']
-    source_folder = "/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #values['-SourceFolder-']
-    target_folder = "/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/tslac_test" #values['-TargetFolder-']
+    if values['-TYPE_youtube-'] is True:
+        window['-File-'].update(visible=False)
+        window['-File_Label-'].update(visible=False)
+        window['-File_Browse-'].update(visible=False)
+        window["-SourceFolder_label-"].update(visible=False)
+        window['-SourceFolder-'].update(visible=False)
+        window['-SourceFolder_browse-'].update(visible=False)
+        window['-youtube_channel_label-'].update(visible=True)
+        window['-youtube_channel-'].update(visible=True)
+        window['-youtube_type_video-'].update(visible=True)
+        window['-youtube_type_shorts-'].update(visible=True)
+        window['-youtube_type_streams-'].update(visible=True)
+        window['-youtube_type_podcasts-'].update(visible=True)
+        window['-youtube_type_playlists-'].update(visible=True)
+        window['-youtube_type_label-'].update(visible=True)
+        window['-youtube_date_label-'].update(visible=True)
+        window['-youtube_date_begin_label-'].update(visible=True)
+        window['-youtube_date_begin-'].update(visible=True)
+        window['-youtube_date_end_label-'].update(visible=True)
+        window['-youtube_date_end-'].update(visible=True)
+    if values['-TYPE_twitter-'] is True or values['-TYPE_facebook_page-'] is True:
+        window['-File-'].update(visible=True)
+        window['-File_Label-'].update(visible=True)
+        window['-File_Browse-'].update(visible=True)
+        window["-SourceFolder_label-"].update(visible=True)
+        window['-SourceFolder-'].update(visible=True)
+        window['-SourceFolder_browse-'].update(visible=True)
+        window['-youtube_channel_label-'].update(visible=False)
+        window['-youtube_channel-'].update(visible=False)
+        window['-youtube_type_video-'].update(visible=False)
+        window['-youtube_type_shorts-'].update(visible=False)
+        window['-youtube_type_streams-'].update(visible=False)
+        window['-youtube_type_podcasts-'].update(visible=False)
+        window['-youtube_type_playlists-'].update(visible=False)
+        window['-youtube_type_label-'].update(visible=False)
+        window['-youtube_date_label-'].update(visible=False)
+        window['-youtube_date_begin_label-'].update(visible=False)
+        window['-youtube_date_begin-'].update(visible=False)
+        window['-youtube_date_end_label-'].update(visible=False)
+        window['-youtube_date_end-'].update(visible=False)
+    target_file = values['-File-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #
+    source_folder = values['-SourceFolder-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #
+    target_folder = "/media/sf_Z_DRIVE/Working/research/socialMedia/youtube2/tslac_test" #values['-TargetFolder-']
     upload_folder = f"{target_folder}_upload"
     metadata_generator = values['-METADATA-']
     metadata_creator = values['-CREATOR-']
@@ -485,6 +367,23 @@ while True:
     collectionName = values['-CITATION-']
     wall = values['-WALL-']
     if event == "Execute":
+        if values['-TYPE_youtube-'] is True:
+            startdate = values['-youtube_date_begin-']
+            enddate = values['-youtube_date_end-']
+            channel = values['-youtube_channel-']
+            options_set = []
+            if values['-youtube_type_video-'] is True:
+                options_set.append("videos")
+            if values['-youtube_type_shorts-'] is True:
+                options_set.append("shorts")
+            if values['-youtube_type_streams-'] is True:
+                options_set.append("streams")
+            if values['-youtube_type_podcasts-'] is True:
+                options_set.append("podcasts")
+            if values['-youtube_type_playlists-'] is True:
+                options_set.append("playlists")
+            youtube_handler(channel_name=channel, options_set=options_set, startdate=startdate, enddate=enddate, target=values['-TargetFolder-'])
+
         upload_list = set()
         year_list = set()
         if target_file != "" and target_folder != "" and source_folder != "":
