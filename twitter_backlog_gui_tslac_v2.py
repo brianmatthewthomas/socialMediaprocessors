@@ -177,18 +177,21 @@ def youtube_handler(channel_name, options_set, startdate, enddate, target):
                 'getcomments': True,
                 'write-description': True,
                 'format': ytdl_formatselector,
-                'download_archive': f"{target}/youtube.txt"}
+                'download_archive': f"{target}/youtube.txt",
+                'ignoreerrors': True}
     if startdate != "" and enddate != "":
         ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
     output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
     for option in options_set:
         urls = [f'{channel_name}/{option}']
-        output_template['default'] = f'./{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+        create_directory(f'{target}/{option}/youtube.txt')
+        output_template['default'] = f'{target}/{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
         if option == "playlist" or option == "podcasts" or option == "shorts":
-            output_template['default'] = f'./{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+            output_template['default'] = f'{target}/{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
         ydl_opts['outtmpl'] = output_template
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download(urls)
+    window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
 
 
 layout = [
@@ -359,7 +362,7 @@ while True:
         window['-youtube_date_end-'].update(visible=False)
     target_file = values['-File-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #
     source_folder = values['-SourceFolder-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #
-    target_folder = "/media/sf_Z_DRIVE/Working/research/socialMedia/youtube2/tslac_test" #values['-TargetFolder-']
+    target_folder = "/media/sf_Z_DRIVE/Working/social/youtube2" #values['-TargetFolder-']
     upload_folder = f"{target_folder}_upload"
     metadata_generator = values['-METADATA-']
     metadata_creator = values['-CREATOR-']
