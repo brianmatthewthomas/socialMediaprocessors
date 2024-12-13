@@ -155,7 +155,7 @@ def ytdl_formatselector(ctx):
            'requested_formats': [best_video, best_audio],
            'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'}
 
-def youtube_handler(channel_name, options_set, startdate, enddate, target):
+def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=str, comments=bool, target=str):
     if startdate == "YYYY-MM-DD":
         startdate = ""
     if enddate == "YYYY-MM-DD":
@@ -174,11 +174,13 @@ def youtube_handler(channel_name, options_set, startdate, enddate, target):
     ydl_opts = {'writeinfojson': True,
                 'writesubtitles': True,
                 'subtitlesformat': 'vtt',
-                'getcomments': True,
+                'getcomments': False,
                 'write-description': True,
                 'format': ytdl_formatselector,
                 'download_archive': f"{target}/youtube.txt",
                 'ignoreerrors': True}
+    if comments is True:
+        ydl_opts['getcomments'] = True
     if startdate != "" and enddate != "":
         ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
     output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
@@ -255,6 +257,10 @@ layout = [
         sg.In(default_text="YYYY-MM-DD", visible=False, key="-youtube_date_begin-", size=(15, 1)),
         sg.Text("End date (yyyy-mm-dd):", visible=False, key="-youtube_date_end_label-"),
         sg.In(default_text="YYYY-MM-DD", visible=False, key="-youtube_date_end-", size=(15, 1))
+    ],
+    [
+        sg.Push(),
+        sg.Checkbox("Get Comments?", visible=False, key='-youtube_GetComments-'),
     ],
     [
         sg.Checkbox("Export Metadata?", checkbox_color="dark green",
@@ -340,6 +346,7 @@ while True:
         window['-youtube_date_begin-'].update(visible=True)
         window['-youtube_date_end_label-'].update(visible=True)
         window['-youtube_date_end-'].update(visible=True)
+        window['-youtube_GetComments-'].update(visible=True)
     if values['-TYPE_twitter-'] is True or values['-TYPE_facebook_page-'] is True:
         window['-File-'].update(visible=True)
         window['-File_Label-'].update(visible=True)
@@ -360,6 +367,7 @@ while True:
         window['-youtube_date_begin-'].update(visible=False)
         window['-youtube_date_end_label-'].update(visible=False)
         window['-youtube_date_end-'].update(visible=False)
+        window['-youtube_GetComments-'].update(visible=False)
     target_file = values['-File-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #
     source_folder = values['-SourceFolder-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #
     target_folder = "/media/sf_Z_DRIVE/Working/social/youtube2" #values['-TargetFolder-']
@@ -385,7 +393,7 @@ while True:
                 options_set.append("podcasts")
             if values['-youtube_type_playlists-'] is True:
                 options_set.append("playlists")
-            youtube_handler(channel_name=channel, options_set=options_set, startdate=startdate, enddate=enddate, target=values['-TargetFolder-'])
+            youtube_handler(channel_name=channel, options_set=options_set, startdate=startdate, enddate=enddate, comments=values['-youtube_GetComments-'], target=values['-TargetFolder-'])
 
         upload_list = set()
         year_list = set()
@@ -1421,3 +1429,8 @@ while True:
     if event == "Close" or event == sg.WIN_CLOSED:
         break
 window.close()
+
+#TODO make each section a definition so it is object-oriented
+#TODO pass type of social media to handler for normalization
+#TODO pass type of social media and if normalization has occured to handler for wall
+#TODO make a spreadsheet output for summary data for the end-user
