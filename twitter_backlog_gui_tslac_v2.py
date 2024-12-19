@@ -387,10 +387,206 @@ def create_preservation(target_folder=str):
     preservation_directories = list(preservation_directories)
     preservation_directories.sort()
     return preservation_directories
+# select YouTube best format for lowest exchange in filesize
+def ytdl_formatselector(ctx):
+    formats = ctx.get('formats')[::-1]
+    best_video = next(f for f in formats if f['vcodec'] != 'none' and f['acodec'] == 'none')
+    audio_ext = {'mp4': 'm4a', 'webm': 'webm'}[best_video['ext']]
+    best_audio = next(f for f in formats if (f['acodec'] != 'none' and f['vcodec'] == 'none' and f['ext'] == audio_ext))
+    yield {'format_id': f'{best_video["format_id"]}+{best_audio["format_id"]}',
+           'ext': best_video['ext'],
+           'requested_formats': [best_video, best_audio],
+           'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'}
+
+# YouTube workhorse
+def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=str, comments=bool, target=str):
+    upload_list = set()
+    id_list = []
+    with open(f"{target}/youtube.txt", "r") as r:
+        for line in r:
+            line = line[:-1]
+            id_list.append(line)
+    r.close()
+    if startdate == "YYYY-MM-DD":
+        startdate = ""
+    if enddate == "YYYY-MM-DD":
+        enddate = ""
+    if startdate != "" and enddate != "":
+        startdate = startdate.replace("-", "")
+        enddate = enddate.replace("-", "")
+        try:
+            startdate_number = int(startdate)
+            startdate_number - int(enddate)
+        except:
+            window['-OUTPUT-'].update("A non-numeric date was entered for date range, removing this limitation\n", append=True)
+            startdate = ""
+            enddate = ""
+    channel_name = channel_name.replace("example: ", "")
+    ydl_opts = {'writeinfojson': True,
+                'writesubtitles': True,
+                'subtitlesformat': 'vtt',
+                'getcomments': False,
+                'write-description': True,
+                'format': ytdl_formatselector,
+                'download_archive': f"{target}/youtube.txt",
+                'ignoreerrors': True}
+    if comments is True:
+        ydl_opts['getcomments'] = True
+    if startdate != "" and enddate != "":
+        ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
+    output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
+    for option in options_set:
+        urls = [f'{channel_name}/{option}']
+        create_directory(f'{target}/{option}/youtube.txt')
+        output_template['default'] = f'{target}/{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+        if option == "playlist" or option == "podcasts" or option == "shorts":
+            output_template['default'] = f'{target}/{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+        ydl_opts['outtmpl'] = output_template
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download(urls)
+    # gather list of new videos for preservation/upload action
+    id_list2 = []
+    with open(f"{target}/youtube.txt", "r") as r:
+        for line in r:
+            line = line[:-1]
+            if line not in id_list:
+                line = line.split(" ")[-1]
+                id_list2.append(line)
+    # get directories with  applicable video ids
+    for dirpath, dirnames, filenames in os.walk(target):
+        for filename in filenames:
+            best_dir = dirpath.split("/")[-1].split("\\")[-1]
+            for item in id_list2:
+                if item in best_dir:
+                    upload_list.add(dirpath)
+    window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
+    upload_list = list(upload_list)
+    upload_list.sort()
+    return upload_list
 
 def normalize_twitter(preservation_directories=list):
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    filename = os.path.join(dirpath, filename)
+                    # clear any existing normalized json data by switching data types and switching back
+                    normalized_json = 0
+                    normalized_json = dict()
+                    # set basic structure of the dictionary to ensure required elements exist
+                    normalized_json = {'platform': 'twitter',
+                                       'post_id': "",
+                                       'timestamp': "",
+                                       'content_text': "",
+                                       'user': {'username': "",
+                                                'userid': ""},
+                                       'hooks': {'hashtags': list(),
+                                                 'mentions': list()},
+                                       'engagement': {'likes': int(),
+                                                      'favorites': int(),
+                                                      'shares': int()},
+                                       'relationships': list()}
+                    # begin processing the existing post
+                    with open(filename, "r") as r:
+                        json_data = r.read()
+                        json_data = json.loads(json_data)
+                        normalized_json['platform'] = "twitter"
+                        normalized_json['post_type'] = "post"
+                        normalized_json['post_id'] = json_data['id_str']
+                        normalized_json['timestamp'] = json_data['created_at']
+                        normalized_json['content_text'] = json_data['full_text']
+                        normalized_json['user']['username'] = json_data['user']['screen_name']
+                        normalized_json['user']['userid'] = json_data['user']['id_str']
+                        user_time = json_data['user']['created_at']
+                        if "." in user_time:
+                            my_time = user_time.split(".")[:-1]
+                            user_time = my_time.replace(f".{my_time}", "")
+                            user_time = datetime.datetime.strptime(user_time, "%Y-%m-%dT%H:%M:%S")
+                            user_time = datetime.datetime.strftime(user_time, "%a %b %d $H:%M%S +0000 %Y")
+                            normalized_json['user']['account_created'] = user_time
+                        if "location" in json_data['user'].keys():
+                            normalized_json['user']['geolocation'] = json_data['user']['location']
+                        if "geo" in json_data:
+                            if isinstance(json_data['geo'], dict):
+                                if json_data['geo']['type'] == "Point":
+                                    normalized_json['geolocation'] = {'latitude': json_data['geo']['coordinates'][0],
+                                                                      'longitude': json_data['geo']['coordinates'][1]}
+                        if "extended_entities" in json_data.keys():
+                            if "media" in json_data['extended_entities'].keys():
+                                normalized_json['media'] = list()
+                                for media in json_data['extended_entities']['media']:
+                                    mini_dict = 0
+                                    mini_dict = {'media_type': media['type'],
+                                                 'mimetype': f"{media['type']}/{media['media_url_https'].split('.')[-1]}",
+                                                 'filename': media['media_url_https'].split("/")[-1],
+                                                 'file_url': media['media_url'],
+                                                 'description': "",
+                                                 'filesize': "",
+                                                 'dates': {'created': "",
+                                                           'uploaded': ""},
+                                                 'geolocation': {'latitude': "",
+                                                                 'longitude': ""},
+                                                 'technical': dict()}
+                                    # populate technical data section if the data points are there
+                                    if "sizes" in media:
+                                        mini_dict['technical']['sizes'] = dict()
+                                        for key in media['sizes'].keys():
+                                            mini_dict['technical']['sizes'][key] = media['sizes'][key]
+                                    if "additional_media_info" in media:
+                                        mini_dict['technical']['additional_media_info'] = dict()
+                                        for key in media['additional_media_info'].keys():
+                                            mini_dict['technical']['additional_media_info'][key] = media['additional_media_info'][key]
+                                    if "video_info" in media:
+                                        mini_dict['technical']['video_info'] = dict()
+                                        for key in media['video_info'].keys():
+                                            mini_dict['technical']['video_info'][key] = media['video_info'][key]
+                                        mini_dict['technical'] = media['sizes']
+                                    normalized_json['media'].append(mini_dict)
+                        if "hashtags" in json_data['entities']:
+                            for hashtag in json_data['entities']['hashtags']:
+                                normalized_json['hooks']['hashtags'].append(hashtag['text'])
+                        if 'user_mentions' in json_data['entities']:
+                            for mention in json_data['entities']['user_mentions']:
+                                normalized_json['hooks']['mentions'].append(mention['screen_name'])
+                        if "symbols" in json_data['entities']:
+                            normalized_json['hooks']['symbols'] = list()
+                            for symbol in json_data['entities']['symbols']:
+                                normalized_json['hooks']['symbols'].append(symbol['text'])
+                        if "urls" in json_data['entities']:
+                            normalized_json['hooks']['links'] = list()
+                            for url in json_data['entities']['urls']:
+                                normalized_json['hooks']['links'].append(url['expanded_url'])
+                        normalized_json['engagement']['favorites'] = json_data['favorite_count']
+                        normalized_json['engagement']['retweet_count'] = json_data['retweet_count']
+                        if "in_reply_to_screen_name" in json_data:
+                            if isinstance(json_data['in_reply_to_screen_name'], str):
+                                normalized_json['relationships'].append({'post_id': json_data['in_reply_to_statusId'],
+                                                                         'username': json_data['in_reply_to_screen_name'],
+                                                                         'relationship_type': 'reply'})
+                    with open(filename, "w") as w:
+                        json.dump(normalized_json, w)
+                    w.close()
+                    window['-OUTPUT-'].update(f"normalized json for {filename}\n", append=True)
 
-    print("something")
+# twitter correspondence handler
+def twitter_correspondence(source_folder=str, target_folder=str):
+    direct_mesage_file = f"{source_folder}/data/direct-messages.js"
+    with open(direct_mesage_file, "r") as r:
+        json_data = r.read()
+        json_data = json_data.replace('window.YTD.direct-messages.part0 = [\n ', '').replace('\n]', '')
+        json_data = json.loads(json_data)
+        for direct_message in json_data:
+            key_data = direct_message['dmConversation']['messages'][-1]
+            message_date = key_data['createdAt'][:10]
+            conversation_id = direct_message['dmConversation']['conversationId']
+            message_name = f"{message_date}_{conversation_id}"
+            message_filename = f"{target_folder}/correspondence/{message_date[:4]}/{message_name}/{message_name}.json"
+            create_directory(message_filename)
+            with open(message_filename, "w") as w:
+                json.dump(direct_message, w)
+            w.close()
+            window['-OUTPUT-'].update(f"processed direct message {message_name}\n", append=True)
+    r.close()
 
 # get media directly from online instead of from twitter archive
 def tweet_media_handler(url, filename):
@@ -404,7 +600,9 @@ def tweet_media_handler(url, filename):
                 f.write(chunk)
         f.close()
 
+# workhorse to tweets
 def tweet_handler(source_folder, target_folder):
+    upload_list = set()
     my_precious = f'{source_folder}/data/tweet.js'
     my_data = f'{source_folder}/data'
     if os.path.isfile(my_precious):
@@ -587,60 +785,11 @@ def tweet_handler(source_folder, target_folder):
         for item in id_list2:
             f.write(f"{item}\n")
     f.close()
+    upload_list = list(upload_list)
+    upload_list.sort()
     return upload_list
 
 
-# select YouTube best format for lowest exchange in filesize
-def ytdl_formatselector(ctx):
-    formats = ctx.get('formats')[::-1]
-    best_video = next(f for f in formats if f['vcodec'] != 'none' and f['acodec'] == 'none')
-    audio_ext = {'mp4': 'm4a', 'webm': 'webm'}[best_video['ext']]
-    best_audio = next(f for f in formats if (f['acodec'] != 'none' and f['vcodec'] == 'none' and f['ext'] == audio_ext))
-    yield {'format_id': f'{best_video["format_id"]}+{best_audio["format_id"]}',
-           'ext': best_video['ext'],
-           'requested_formats': [best_video, best_audio],
-           'protocol': f'{best_video["protocol"]}+{best_audio["protocol"]}'}
-
-# YouTube workhorse
-def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=str, comments=bool, target=str):
-    if startdate == "YYYY-MM-DD":
-        startdate = ""
-    if enddate == "YYYY-MM-DD":
-        enddate = ""
-    if startdate != "" and enddate != "":
-        startdate = startdate.replace("-", "")
-        enddate = enddate.replace("-", "")
-        try:
-            startdate_number = int(startdate)
-            startdate_number - int(enddate)
-        except:
-            window['-OUTPUT-'].update("A non-numeric date was entered for date range, removing this limitation\n", append=True)
-            startdate = ""
-            enddate = ""
-    channel_name = channel_name.replace("example: ", "")
-    ydl_opts = {'writeinfojson': True,
-                'writesubtitles': True,
-                'subtitlesformat': 'vtt',
-                'getcomments': False,
-                'write-description': True,
-                'format': ytdl_formatselector,
-                'download_archive': f"{target}/youtube.txt",
-                'ignoreerrors': True}
-    if comments is True:
-        ydl_opts['getcomments'] = True
-    if startdate != "" and enddate != "":
-        ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
-    output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
-    for option in options_set:
-        urls = [f'{channel_name}/{option}']
-        create_directory(f'{target}/{option}/youtube.txt')
-        output_template['default'] = f'{target}/{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
-        if option == "playlist" or option == "podcasts" or option == "shorts":
-            output_template['default'] = f'{target}/{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
-        ydl_opts['outtmpl'] = output_template
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download(urls)
-    window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
 
 # Facebook workhorse
 def facebook_handler():
@@ -652,6 +801,7 @@ layout = [
     [
         sg.Radio("Twitter", group_id="media_type", key='-TYPE_twitter-'),
         sg.Radio("Facebook page", group_id="media_type", key="-TYPE_facebook_page-"),
+        sg.Radio("Instagram account", group_id="media_type", key="-TYPE_instagram-"),
         sg.Radio("YouTube", group_id="media_type", key="-TYPE_youtube-"),
         sg.Button("Load options")
     ],
@@ -850,6 +1000,7 @@ while True:
     wall = values['-WALL-']
     if event == "Execute":
         if values['-TYPE_youtube-'] is True:
+            # get the variables
             startdate = values['-youtube_date_begin-']
             enddate = values['-youtube_date_end-']
             channel = values['-youtube_channel-']
@@ -864,7 +1015,36 @@ while True:
                 options_set.append("podcasts")
             if values['-youtube_type_playlists-'] is True:
                 options_set.append("playlists")
+            # do a direct harvest of the data, will print out as it goes
             youtube_handler(channel_name=channel, options_set=options_set, startdate=startdate, enddate=enddate, comments=values['-youtube_GetComments-'], target=values['-TargetFolder-'])
+            if values['-NORMALIZE-'] is True:
+                # tap into foldering rules and assume that anything not put into standard structure needs normalization
+                preservation_directories = create_preservation(target_folder)
+                # end list of folders to be normalized to normalization handler
+                normalize_youtube(preservation_directories)
+                if values['-METADATA-'] is True:
+                    window['-OUTPUT-'].update(f"started metadata generation\n", append=True)
+                    make_metadata2(preservation_directories, social_type="YouTube", collection_name=collectionName, agency=metadata_creator)
+                    window['-OUTPUT-'].update("metadata generation completed\n", append=True)
+                if values['-WALL-'] is True:
+                    window['-OUTPUT-'].update(f"creating wall\n", append=True)
+                    create_wall(target_folder)
+                    window['-OUTPUT-'].update(f"wall generated\n", append=True)
+            if values['UPLOAD-'] is True:
+                window['OUTPUT-'].update(f"beginning to create upload directories and files\n", append=True)
+                if values['-UploadStaging'] != "":
+                    upload_folder = values['-UploadStaging-']
+                else:
+                    upload_folder = f"{target_folder}_upload"
+                for post in preservation_directories:
+                    for dirpath, dirnames, filenames in os.walk(post):
+                        filename1 = os.path.join(dirpath, filename)
+                        filename2 = filename1.replace(target_folder, upload_folder)
+                        create_directory(filename2)
+                        shutil.copy2(filename1, filename2)
+                        shutil.copystat(filename1, filename2)
+                        window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
+                window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
 
         upload_list = set()
         year_list = set()
@@ -877,6 +1057,8 @@ while True:
                 window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 upload_list = tweet_handler(source_folder, target_folder)
+                if values['-GET_Correspondence-'] is True:
+                    twitter_correspondence(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
@@ -906,18 +1088,52 @@ while True:
                             window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
 
-            if values['-TYPE_twitter-'] is True:
-                window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
+            if values['-TYPE_facebook_page-'] is True:
+                window['-OUTPUT-'].update(f"Starting processing facebook page account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
-                upload_list = tweet_handler(source_folder, target_folder)
+                upload_list = facebook_handler(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
                     # send list of folders to be normalized to normalization handler
-                    normalize_twitter(preservation_directories)
+                    normalize_facebook(preservation_directories)
                     if values['-METADATA-'] is True:
                         window['-OUTPUT-'].update(f"starting metadata generation\n", append=True)
                         make_metadata2(preservation_directories, "Twitter", collectionName, metadata_creator)
+                        window['-OUTPUT-'].update(f"metadata generation completed\n", append=True)
+                    if values['-WALL-'] is True:
+                        window['-OUTPUT-'].update(f"creating wall\n", append=True)
+                        create_wall(target_folder)
+                        window['-OUTPUT-'].update(f"wall generated\n", append=True)
+                if values['-UPLOAD-'] is True:
+                    window['-OUTPUT-'].update(f"beginning to create upload directories and files\n",
+                                              append=True)
+                    if values['-UploadStaging-'] != "":
+                        upload_folder = values['-UploadStaging-']
+                    else:
+                        upload_folder = f"{target_folder}_upload"
+                    for post in preservation_directories:
+                        for dirpath, dirnames, filenames in os.walk(post):
+                            filename1 = os.path.join(dirpath, filename)
+                            filename2 = filename1.replace(target_folder, upload_folder)
+                            create_directory(filename2)
+                            shutil.copy2(filename1, filename2)
+                            shutil.copystat(filename1, filename2)
+                            window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n",
+                                                      append=True)
+                    window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
+            if values['-TYPE_instagram-'] is True:
+                window['-OUTPUT-'].update(f"Starting processing instagram account data\n", append=True)
+                # send the whole deal to the twitter handler and get back a list of twitter data to deal with
+                upload_list = instagram_handler(source_folder, target_folder)
+                if values['-NORMALIZE-'] is True:
+                    # tap into foldering rules and assume that anything not put into standard structure needs normalization
+                    preservation_directories = create_preservation(target_folder)
+                    # send list of folders to be normalized to normalization handler
+                    normalize_instagram(preservation_directories)
+                    if values['-METADATA-'] is True:
+                        window['-OUTPUT-'].update(f"starting metadata generation\n", append=True)
+                        make_metadata2(preservation_directories, "Instagram", collectionName, metadata_creator)
                         window['-OUTPUT-'].update(f"metadata generation completed\n", append=True)
                     if values['-WALL-'] is True:
                         window['-OUTPUT-'].update(f"creating wall\n", append=True)
