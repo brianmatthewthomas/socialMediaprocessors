@@ -790,6 +790,33 @@ def tweet_handler(source_folder, target_folder):
     return upload_list
 
 
+# facebook normalization to standardized format
+def normalize_facebook(preservation_directories=list):
+    print("something")
+
+# facebook correspondence handler
+def facebook_correspondence(source_folder=str, target_folder=str):
+    target_folder = f"{target_folder}/correspondence"
+    correspondence_source = f"{source_folder}/this_profile's_activity_across_facebook/"
+    for dirpath, dirnames, filenames in os.walk(correspondence_source):
+        for filename in filenames:
+            if filename.endswith(".json"):
+                window['-OUTPUT-'].update(f"processing {dirpath}\n", append=True)
+                my_json_file = os.path.join(dirpath, filename)
+                with open(my_json_file, 'r') as r:
+                    json_data = r.read()
+                    json_data = json.loads(json_data)
+                    messages = json_data['messages']
+                    latest_timestamp = messages[-1]['timestamp_ms']/1000
+                    latest_timestamp = str(datetime.datetime.fromtimestamp(latest_timestamp))
+                    my_dir = dirpath.split("/")[-1].split("\\")[-1]
+                    my_dir = f"{target_folder}/{latest_timestamp[:4]}/{latest_timestamp[:10]}_{my_dir}"
+                    new_json_file = os.path.join(my_dir, filename)
+                    create_directory(new_json_file)
+                    shutil.copy2(my_json_file, new_json_file)
+                    shutil.copystat(my_json_file, new_json_file)
+                r.close()
+    window['-OUTPUT-'].update(f"done processing correspondence\n", append=True)
 
 # Facebook workhorse
 def facebook_handler():
@@ -862,7 +889,11 @@ layout = [
     ],
     [
         sg.Push(),
-        sg.Checkbox("Get Comments?", visible=False, key='-youtube_GetComments-'),
+        sg.Checkbox("Get Comments?", visible=False, key='-youtube_GetComments-', tooltip="include YouTube comments in harvested YouTube data"),
+    ],
+    [
+        sg.Push(),
+        sg.Checkbox('Get correspondence?', tooltip="extract correspondence from social media data archive", key='-GET_correspondence-', enable_events=True, visible=False)
     ],
     [
         sg.Checkbox("Normalize JSON?", tooltip="Checking this will convert native JSON to universal format and create duplicate presentation files",
@@ -952,6 +983,7 @@ while True:
         window['-youtube_date_end_label-'].update(visible=True)
         window['-youtube_date_end-'].update(visible=True)
         window['-youtube_GetComments-'].update(visible=True)
+        window['-GET_correspondence-'].update(visible=False)
     if values['-TYPE_twitter-'] is True or values['-TYPE_facebook_page-'] is True:
         window['-File-'].update(visible=True)
         window['-File_Label-'].update(visible=True)
@@ -972,7 +1004,8 @@ while True:
         window['-youtube_date_begin-'].update(visible=False)
         window['-youtube_date_end_label-'].update(visible=False)
         window['-youtube_date_end-'].update(visible=False)
-        window['-youtube_GetComments-'].update(visible=False),
+        window['-GET_correspondence-'].update(visible=True)
+        window['-youtube_GetComments-'].update(visible=False)
     if values['-NORMALIZE-'] is True:
         window['-METADATA-'].update(visible=True)
         window['-WALL-'].update(visible=True)
@@ -1057,7 +1090,7 @@ while True:
                 window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 upload_list = tweet_handler(source_folder, target_folder)
-                if values['-GET_Correspondence-'] is True:
+                if values['-GET_correspondence-'] is True:
                     twitter_correspondence(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
