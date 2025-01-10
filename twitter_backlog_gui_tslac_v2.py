@@ -360,6 +360,15 @@ def create_sha256(filename):
     fixity = sha256.hexdigest()
     return fixity
 
+# extract tge downloaded zip file as a first step to any processing
+def extract_social_archive(source_zip=str, target_dir=str):
+    if not os.path.isdir(target_dir):
+        window["-OUTPUT-"].update("target for extracted files doesn't exist, extracting social media zip download\n", append=True)
+        crazy = zipfile.ZipFile(source_zip)
+        crazy.extractall(target_dir)
+        window['-OUTPUT-'].update(f"source zip extracted to {target_dir}, moving ot next step\n", append=True)
+    else:
+        window['-OUTPUT-'].update("target for extracted social media zip already exists, if this is a new download either delete the old extraction or choose a different target location\n", append=True)
 # make preservation structure
 def create_preservation(target_folder=str):
     # create set of directories for preservation action once subfoldering is completed
@@ -464,6 +473,8 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
     upload_list.sort()
     return upload_list
 
+def normalize_youtube(preservation_directories=list):
+    print("something")
 def normalize_twitter(preservation_directories=list):
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
@@ -819,7 +830,15 @@ def facebook_correspondence(source_folder=str, target_folder=str):
     window['-OUTPUT-'].update(f"done processing correspondence\n", append=True)
 
 # Facebook workhorse
-def facebook_handler():
+def facebook_handler(source_folder=str, target_folder=str):
+    window['-OUTPUT-'].update(f"processing facebook download\n", append=True)
+    my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
+    valuables = {}
+    valuables['base_location'] = target_folder
+    valuables['source_dir'] = source_folder
+    log = open("logger.txt", "a")
+    id_list = []
+    baseline = f"{valuables['base_location']}/"
     print("something")
 
 
@@ -1087,6 +1106,7 @@ while True:
             window['-OUTPUT-'].update(f"your final processed archive will be at {target_folder}\n", append=True)
             window['-OUTPUT-'].update(f"executing...\n")
             if values['-TYPE_twitter-'] is True:
+                extract_social_archive(target_file, source_folder)
                 window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 upload_list = tweet_handler(source_folder, target_folder)
@@ -1122,6 +1142,7 @@ while True:
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
 
             if values['-TYPE_facebook_page-'] is True:
+                extract_social_archive(target_file, source_folder)
                 window['-OUTPUT-'].update(f"Starting processing facebook page account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 upload_list = facebook_handler(source_folder, target_folder)
@@ -1160,6 +1181,7 @@ while True:
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 upload_list = instagram_handler(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
+                    extract_social_archive(target_file, source_folder)
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
                     # send list of folders to be normalized to normalization handler
