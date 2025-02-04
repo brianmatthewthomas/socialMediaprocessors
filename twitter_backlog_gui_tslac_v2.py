@@ -474,7 +474,118 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
     return upload_list
 
 def normalize_youtube(preservation_directories=list):
-    print("something")
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    filename = os.path.join(dirpath, filename)
+                    # clear any existing normalized json data by switching data types and switching back
+                    normalized_json = 0
+                    normalized_json = dict()
+                    # set basic structure of the dictionary to ensure required elements exist
+                    normalized_json = {'platform': 'youtube',
+                                       'post_type': "",
+                                       'post_id': "",
+                                       'timestamp': "",
+                                       'content_text': "",
+                                       'user': {'username': "",
+                                                'userid': ""},
+                                       'hooks': {'hashtags': list(),
+                                                 'mentions': list()},
+                                       'engagement': {'likes': int(),
+                                                      'favorites': int(),
+                                                      'shares': int()},
+                                       'relationships': list()}
+                    # begin processing the existing post
+                    with open(filename, "r") as r:
+                        json_data = r.read()
+                        json_data = json.loads(json_data)
+                        normalized_json['platform'] = "youtube"
+                        normalized_json['post_type'] = "video"
+                        normalized_json['post_id'] = json_data['id']
+                        normalized_json['timestamp'] = json_data['timestamp']
+                        normalized_json['content_text'] = json_data['description']
+                        normalized_json['content_title'] = json_data['title']
+                        normalized_json['normalization_comment'] = "For media YouTube videos and captions do not have discernible filenames, file url input instead. Full video data placed in technical information. Only best available video and intentionally requested captions harvested, all other formats listed may still reside with YouTube. Data for automatic captions not preserved as this is system-generated without user intervention."
+                        normalized_json['media'] = []
+                        for item in json_data['formats']:
+                            # clear the media dictionary by replacing with a string in case the json processor tries to cling to prior data
+                            media_dict = "some_string"
+                            media_dict = {}
+                            media_dict['media_type'] = "audiovisual"
+                            media_dict['mimetype'] = f"video/{item['video_ext']}"
+                            if item['resolution'] == "audio only":
+                                media_dict['media_type'] = "audio"
+                                media_dict['mimetype'] = f"audio/{item['audio_ext']}"
+                            media_dict['file_url'] = item['url']
+                            media_dict['description'] = f"format note: {item['format']}."
+                            media_dict['filesize'] = item['filesize']
+                            media_dict['dates'] = {}
+                            media_dict['dates']['created'] = ""
+                            media_dict['dates']['uploaded'] = ""
+                            media_dict['technical'] = item
+                            normalized_json['formats'].append(media_dict)
+                        for item in json_data['thumbnails']:
+                            media_dict = "some_string"
+                            media_dict = {}
+                            media_dict['media_type'] = "thumbnail"
+                            media_dict['filename'] = item['url'].split("/")[-1]
+                            media_dict['mimetype'] = f"image/{media_dict['filename'].split('.')[-1]}"
+                            media_dict['file_url'] = item['url']
+                            media_dict['technical'] = {}
+                            media_dict['technical']['preference'] = item['preference']
+                            media_dict['technical']['id'] = item['id']
+                            normalized_json['formats'].append(media_dict)
+                        captions = json_data['subtitles'].keys()
+                        for caption in captions:
+                            caption_name = caption
+                            for item in json_data['subtitles'][caption]:
+                                media_dict = "some_string"
+                                media_dict = {}
+                                media_dict['media_type'] = 'caption'
+                                media_dict['mimetype'] = f"caption/{item['ext']}"
+                                media_dict['filename'] = item['url']
+                                media_dict['file_url'] = item['url']
+                                media_dict['description'] = f"Caption in format {item['ext']} for {item['name']} language with language code {caption_name}."
+                                normalized_json['formats'].append(media_dict)
+                        normalized_json['user']['username'] = json_data['channel']
+                        normalized_json['user']['userid'] = json_data['uploader_id']
+                        hashlist = set()
+                        if "#" in json_data['title']:
+                            titliest = json_data['title'].split(" ")
+                            for item in titliest:
+                                if "#" in item:
+                                    hashlist.add(item.split("#")[-1])
+                        if "#" in json_data['description']:
+                            titliest = json_data['description'].split(" ")
+                            for item in titliest:
+                                if "#" in item:
+                                    hashlist.add(item.split("#")[-1])
+                        hashlist = list(hashlist)
+                        hashlist.sort()
+                        normalized_json['hooks']['hashtags'] = hashlist
+                        mentionlist = set()
+                        if "@" in json_data['title']:
+                            titliest = json_data['title'].split(" ")
+                            for item in titliest:
+                                if "@" in item:
+                                    mentionlist.add(item.split("@")[-1])
+                        if "@" in json_data['description']:
+                            titliest = json_data['description'].split(" ")
+                            for item in titliest:
+                                if "@" in item:
+                                    mentionlist.add(item.split("@")[-1])
+                        mentionlist = list(mentionlist)
+                        mentionlist.sort()
+                        normalized_json['hooks']['mentions'] = mentionlist
+                        normalized_json['hooks']['tags'] = json_data['tags']
+                        normalized_json['engagement']['likes'] = json_data['like_count']
+                        normalized_json['engagement']['views'] = json_data['view_count']
+                        normalized_json['engagement']['comments'] = json_data['comment_count']
+                    with open(filename, "w") as w:
+                        json.dump(normalized_json, w)
+                    w.close()
+                    window['-OUTPUT-'].update(f"normalized json for {filename}\n", append=True)
 def normalize_twitter(preservation_directories=list):
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
