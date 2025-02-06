@@ -74,7 +74,7 @@ def make_metadata(metadata_dictionary):
 def make_metadata2(preservation_directories=list, social_type=str, collection_name=str, agency=str):
     # create metadata files based on the standardized social media format, not the native social media format
     for preservation_directory in preservation_directories:
-        for dirpath, dirname, filename in os.walk(preservation_directory):
+        for dirpath, dirname, filenames in os.walk(preservation_directory):
             for filename in filenames:
                 if filename.endswith(".json"):
                     metadata_file = filename.replace(".json", ".metadata")
@@ -95,9 +95,11 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                     collectionName = SubElement(metadata, 'dcterms:relation.isPartOf')
                     collectionName.text = collection_name
                     preferredCitation = SubElement(metadata, 'dcterms:identifier.bibliographicCitation')
-                    preferredCitation.text = (f"{title.text}, @{post['userid']}, {post['platform']}, {collection_name}."
+                    my_preferredCitation = (f"{title.text}, @{post['user']['userid']}, {post['platform']}, {collection_name}."
                                               f" Archives and Information Services Division, Texas State Library and"
                                               f" Archives Commission.")
+                    my_preferredCitation = my_preferredCitation.replace("@@", "@")
+                    preferredCitation.text = my_preferredCitation
                     SubElement(metadata, 'dcterms:type').text = "Text"
                     creator = SubElement(metadata, 'dcterms:creator')
                     if agency != "":
@@ -373,25 +375,26 @@ def extract_social_archive(source_zip=str, target_dir=str):
 def create_preservation(target_folder=str):
     # create set of directories for preservation action once subfoldering is completed
     preservation_directories = set()
-    target_folder = f"{target_folder}/posts"
     # go directly to posts subdirectory
     for dirpath, dirnames, filenames in os.walk(target_folder):
         for filename in filenames:
-            if not dirpath.endswith("preservation1") or dirpath.endswith("preservation2"):
-                preservation_directory = os.path.join(dirpath, "preservation1")
-                normalization_directory = os.path.join(dirpath, "preservation2")
-                filename1 = os.path.join(dirpath, filename)
-                # first copy to newly minted folder where normalization will occur
-                normalization_file = os.path.join(normalization_directory, filename)
-                create_directory(normalization_file)
-                shutil.copy2(filename1, normalization_file)
-                shutil.copystat(filename1, normalization_file)
-                # now move file to newly minted preservation1 directory
-                preservation_file = os.path.join(preservation_directory, filename)
-                create_directory(preservation_file)
-                os.rename(filename1, preservation_file)
-                window['-OUTPUT-'].update(f"{filename1} moved to normalization and preservation directories\n", append=True)
-                preservation_directories.add(normalization_directory)
+            if not dirpath.endswith("preservation1"):
+                if not dirpath.endswith("preservation2"):
+                    if not filename.endswith("txt"):
+                        preservation_directory = os.path.join(dirpath, "preservation1")
+                        normalization_directory = os.path.join(dirpath, "preservation2")
+                        filename1 = os.path.join(dirpath, filename)
+                        # first copy to newly minted folder where normalization will occur
+                        normalization_file = os.path.join(normalization_directory, filename)
+                        create_directory(normalization_file)
+                        shutil.copy2(filename1, normalization_file)
+                        shutil.copystat(filename1, normalization_file)
+                        # now move file to newly minted preservation1 directory
+                        preservation_file = os.path.join(preservation_directory, filename)
+                        create_directory(preservation_file)
+                        os.rename(filename1, preservation_file)
+                        window['-OUTPUT-'].update(f"{filename1} moved to normalization and preservation directories\n", append=True)
+                        preservation_directories.add(normalization_directory)
     window['-OUTPUT-'].update(f"preservation/normalization foldering completed, moving to next steps")
     preservation_directories = list(preservation_directories)
     preservation_directories.sort()
@@ -411,6 +414,9 @@ def ytdl_formatselector(ctx):
 def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=str, comments=bool, target=str):
     upload_list = set()
     id_list = []
+    create_directory(f"{target}/youtube.txt")
+    a = open(f"{target}/youtube.txt", "a")
+    a.close()
     with open(f"{target}/youtube.txt", "r") as r:
         for line in r:
             line = line[:-1]
@@ -445,14 +451,23 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
         ydl_opts['daterange'] = yt_dlp.utils.DateRange(str(startdate), str(enddate))
     output_template = {'chapter': '%(title)s - %(section_number)03d %(section_title)s [%(id)s].%(ext)s'}
     for option in options_set:
-        urls = [f'{channel_name}/{option}']
-        create_directory(f'{target}/{option}/youtube.txt')
-        output_template['default'] = f'{target}/{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
-        if option == "playlist" or option == "podcasts" or option == "shorts":
-            output_template['default'] = f'{target}/{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
-        ydl_opts['outtmpl'] = output_template
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download(urls)
+        if "playlist" in option:
+            option = option.replace("playlists=", "").replace("\n", "").replace(" ", "")
+            urls = []
+            urls.append(option)
+            output_template['default'] = f'{target}/playlists/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+            ydl_opts['outtmpl'] = output_template
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download(urls)
+        else:
+            urls = [f'{channel_name}/{option}']
+            create_directory(f'{target}/{option}/youtube.txt')
+            output_template['default'] = f'{target}/{option}/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+            if option == "podcasts" or option == "shorts":
+                output_template['default'] = f'{target}/{option}/%(playlist)s/%(upload_date)s_%(id)s/%(upload_date)s_%(id)s_%(title)s.%(ext)s'
+            ydl_opts['outtmpl'] = output_template
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download(urls)
     # gather list of new videos for preservation/upload action
     id_list2 = []
     with open(f"{target}/youtube.txt", "r") as r:
@@ -475,7 +490,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
 
 def normalize_youtube(preservation_directories=list):
     for preservation_directory in preservation_directories:
-        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
+        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
             for filename in filenames:
                 if filename.endswith(".json"):
                     filename = os.path.join(dirpath, filename)
@@ -486,7 +501,7 @@ def normalize_youtube(preservation_directories=list):
                     normalized_json = {'platform': 'youtube',
                                        'post_type': "",
                                        'post_id': "",
-                                       'timestamp': "",
+                                       'timestamp': 0,
                                        'content_text': "",
                                        'user': {'username': "",
                                                 'userid': ""},
@@ -503,51 +518,60 @@ def normalize_youtube(preservation_directories=list):
                         normalized_json['platform'] = "youtube"
                         normalized_json['post_type'] = "video"
                         normalized_json['post_id'] = json_data['id']
-                        normalized_json['timestamp'] = json_data['timestamp']
+                        if "timestamp" in json_data.keys():
+                            normalized_json['timestamp'] = json_data['timestamp']
+                        elif "epoch" in json_data.keys():
+                            normalized_json['timestamp'] = json_data['epoch']
                         normalized_json['content_text'] = json_data['description']
                         normalized_json['content_title'] = json_data['title']
                         normalized_json['normalization_comment'] = "For media YouTube videos and captions do not have discernible filenames, file url input instead. Full video data placed in technical information. Only best available video and intentionally requested captions harvested, all other formats listed may still reside with YouTube. Data for automatic captions not preserved as this is system-generated without user intervention."
                         normalized_json['media'] = []
-                        for item in json_data['formats']:
-                            # clear the media dictionary by replacing with a string in case the json processor tries to cling to prior data
-                            media_dict = "some_string"
-                            media_dict = {}
-                            media_dict['media_type'] = "audiovisual"
-                            media_dict['mimetype'] = f"video/{item['video_ext']}"
-                            if item['resolution'] == "audio only":
-                                media_dict['media_type'] = "audio"
-                                media_dict['mimetype'] = f"audio/{item['audio_ext']}"
-                            media_dict['file_url'] = item['url']
-                            media_dict['description'] = f"format note: {item['format']}."
-                            media_dict['filesize'] = item['filesize']
-                            media_dict['dates'] = {}
-                            media_dict['dates']['created'] = ""
-                            media_dict['dates']['uploaded'] = ""
-                            media_dict['technical'] = item
-                            normalized_json['formats'].append(media_dict)
-                        for item in json_data['thumbnails']:
-                            media_dict = "some_string"
-                            media_dict = {}
-                            media_dict['media_type'] = "thumbnail"
-                            media_dict['filename'] = item['url'].split("/")[-1]
-                            media_dict['mimetype'] = f"image/{media_dict['filename'].split('.')[-1]}"
-                            media_dict['file_url'] = item['url']
-                            media_dict['technical'] = {}
-                            media_dict['technical']['preference'] = item['preference']
-                            media_dict['technical']['id'] = item['id']
-                            normalized_json['formats'].append(media_dict)
-                        captions = json_data['subtitles'].keys()
-                        for caption in captions:
-                            caption_name = caption
-                            for item in json_data['subtitles'][caption]:
+                        if "formats" in json_data.keys():
+                            for item in json_data['formats']:
+                                # clear the media dictionary by replacing with a string in case the json processor tries to cling to prior data
                                 media_dict = "some_string"
                                 media_dict = {}
-                                media_dict['media_type'] = 'caption'
-                                media_dict['mimetype'] = f"caption/{item['ext']}"
-                                media_dict['filename'] = item['url']
+                                media_dict['media_type'] = "audiovisual"
+                                media_dict['mimetype'] = f"video/{item['video_ext']}"
+                                if item['resolution'] == "audio only":
+                                    media_dict['media_type'] = "audio"
+                                    media_dict['mimetype'] = f"audio/{item['audio_ext']}"
                                 media_dict['file_url'] = item['url']
-                                media_dict['description'] = f"Caption in format {item['ext']} for {item['name']} language with language code {caption_name}."
-                                normalized_json['formats'].append(media_dict)
+                                media_dict['description'] = f"format note: {item['format']}."
+                                if "filesize" in item.keys():
+                                    media_dict['filesize'] = item['filesize']
+                                media_dict['dates'] = {}
+                                media_dict['dates']['created'] = ""
+                                media_dict['dates']['uploaded'] = ""
+                                media_dict['technical'] = item
+                                normalized_json['media'].append(media_dict)
+                        if "thumbnails" in json_data.keys():
+                            for item in json_data['thumbnails']:
+                                media_dict = "some_string"
+                                media_dict = {}
+                                media_dict['media_type'] = "thumbnail"
+                                media_dict['filename'] = item['url'].split("/")[-1]
+                                media_dict['mimetype'] = f"image/{media_dict['filename'].split('.')[-1]}"
+                                media_dict['file_url'] = item['url']
+                                media_dict['technical'] = {}
+                                if "preference" in item.keys():
+                                    media_dict['technical']['preference'] = item['preference']
+                                if "id" in item.keys():
+                                    media_dict['technical']['id'] = item['id']
+                                normalized_json['media'].append(media_dict)
+                        if "subtitles" in json_data.keys():
+                            captions = json_data['subtitles'].keys()
+                            for caption in captions:
+                                caption_name = caption
+                                for item in json_data['subtitles'][caption]:
+                                    media_dict = "some_string"
+                                    media_dict = {}
+                                    media_dict['media_type'] = 'caption'
+                                    media_dict['mimetype'] = f"caption/{item['ext']}"
+                                    media_dict['filename'] = item['url']
+                                    media_dict['file_url'] = item['url']
+                                    media_dict['description'] = f"Caption in format {item['ext']} for {item['name']} language with language code {caption_name}."
+                                    normalized_json['media'].append(media_dict)
                         normalized_json['user']['username'] = json_data['channel']
                         normalized_json['user']['userid'] = json_data['uploader_id']
                         hashlist = set()
@@ -579,9 +603,12 @@ def normalize_youtube(preservation_directories=list):
                         mentionlist.sort()
                         normalized_json['hooks']['mentions'] = mentionlist
                         normalized_json['hooks']['tags'] = json_data['tags']
-                        normalized_json['engagement']['likes'] = json_data['like_count']
-                        normalized_json['engagement']['views'] = json_data['view_count']
-                        normalized_json['engagement']['comments'] = json_data['comment_count']
+                        if "like_count" in json_data.keys():
+                            normalized_json['engagement']['likes'] = json_data['like_count']
+                        if "view_count" in json_data.keys():
+                            normalized_json['engagement']['views'] = json_data['view_count']
+                        if "comment_count" in json_data.keys():
+                            normalized_json['engagement']['comments'] = json_data['comment_count']
                     with open(filename, "w") as w:
                         json.dump(normalized_json, w)
                     w.close()
@@ -996,15 +1023,24 @@ layout = [
     [
         sg.Push(),
         sg.Text("Choose types to download: ", visible=False, key="-youtube_type_label-"),
+        sg.Radio("all videos", visible=False, key='-youtube_type_video-', default=False, group_id="youtube_selector"),
+        sg.Radio("selected videos", visible=False, key="-youtube_type_selected-", default=True, group_id="youtube_selector")
     ],
     [
         sg.Push(),
-        sg.Checkbox("videos", visible=False, key='-youtube_type_video-', default=True),
         sg.Checkbox("shorts", visible=False, key="-youtube_type_shorts-"),
         sg.Checkbox("lives", visible=False, key="-youtube_type_streams-"),
         sg.Checkbox("podcasts", visible=False, key="-youtube_type_podcasts-"),
-        sg.Checkbox("playlists", visible=False, key="-youtube_type_playlists-"),
+        sg.Checkbox("playlists", visible=False, key="-youtube_type_playlists-", tooltip="Can only download one at a time"),
         sg.Push()
+    ],
+    [
+        sg.Push(),
+        sg.Text("Single playlist url, like https://www.youtube.com/watch?v=K1uWw6PCIPc&list=PLLvdMHqukWBLCAOM9ANi71JKPAkcjDnIM", visible=False, key="-youtube_playlists_text-"),
+    ],
+    [
+        sg.Push(),
+        sg.Multiline(default_text="", visible=False, key="-youtube_playlists_list-", size=(60, 3))
     ],
     [
         sg.Push(),
@@ -1101,12 +1137,15 @@ while True:
         window['-SourceFolder_browse-'].update(visible=False)
         window['-youtube_channel_label-'].update(visible=True)
         window['-youtube_channel-'].update(visible=True)
+        window['-youtube_type_label-'].update(visible=True)
         window['-youtube_type_video-'].update(visible=True)
+        window['-youtube_type_selected-'].update(visible=True)
         window['-youtube_type_shorts-'].update(visible=True)
         window['-youtube_type_streams-'].update(visible=True)
         window['-youtube_type_podcasts-'].update(visible=True)
         window['-youtube_type_playlists-'].update(visible=True)
-        window['-youtube_type_label-'].update(visible=True)
+        window['-youtube_playlists_text-'].update(visible=True)
+        window['-youtube_playlists_list-'].update(visible=True)
         window['-youtube_date_label-'].update(visible=True)
         window['-youtube_date_begin_label-'].update(visible=True)
         window['-youtube_date_begin-'].update(visible=True)
@@ -1124,10 +1163,13 @@ while True:
         window['-youtube_channel_label-'].update(visible=False)
         window['-youtube_channel-'].update(visible=False)
         window['-youtube_type_video-'].update(visible=False)
+        window['-youtube_type_selected-'].update(visible=False)
         window['-youtube_type_shorts-'].update(visible=False)
         window['-youtube_type_streams-'].update(visible=False)
         window['-youtube_type_podcasts-'].update(visible=False)
         window['-youtube_type_playlists-'].update(visible=False)
+        window['-youtube_playlists_text-'].update(visible=False)
+        window['-youtube_playlists_list-'].update(visible=False)
         window['-youtube_type_label-'].update(visible=False)
         window['-youtube_date_label-'].update(visible=False)
         window['-youtube_date_begin_label-'].update(visible=False)
@@ -1154,7 +1196,7 @@ while True:
         window['-CITATION-'].update(visible=False)
     target_file = values['-File-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #
     source_folder = values['-SourceFolder-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #
-    target_folder = "/media/sf_Z_DRIVE/Working/social/youtube2" #values['-TargetFolder-']
+    target_folder = values['-TargetFolder-']
     upload_folder = f"{target_folder}_upload"
     metadata_generator = values['-METADATA-']
     metadata_creator = values['-CREATOR-']
@@ -1170,14 +1212,15 @@ while True:
             options_set = []
             if values['-youtube_type_video-'] is True:
                 options_set.append("videos")
-            if values['-youtube_type_shorts-'] is True:
-                options_set.append("shorts")
-            if values['-youtube_type_streams-'] is True:
-                options_set.append("streams")
-            if values['-youtube_type_podcasts-'] is True:
-                options_set.append("podcasts")
-            if values['-youtube_type_playlists-'] is True:
-                options_set.append("playlists")
+            if values['-youtube_type_selected-'] is True:
+                if values['-youtube_type_shorts-'] is True:
+                    options_set.append("shorts")
+                if values['-youtube_type_streams-'] is True:
+                    options_set.append("streams")
+                if values['-youtube_type_podcasts-'] is True:
+                    options_set.append("podcasts")
+                if values['-youtube_type_playlists-'] is True:
+                    options_set.append(f"playlists={values['-youtube_playlists_list-']}")
             # do a direct harvest of the data, will print out as it goes
             youtube_handler(channel_name=channel, options_set=options_set, startdate=startdate, enddate=enddate, comments=values['-youtube_GetComments-'], target=values['-TargetFolder-'])
             if values['-NORMALIZE-'] is True:
@@ -1193,20 +1236,22 @@ while True:
                     window['-OUTPUT-'].update(f"creating wall\n", append=True)
                     create_wall(target_folder)
                     window['-OUTPUT-'].update(f"wall generated\n", append=True)
-            if values['UPLOAD-'] is True:
-                window['OUTPUT-'].update(f"beginning to create upload directories and files\n", append=True)
-                if values['-UploadStaging'] != "":
+            if values['-UPLOAD-'] is True:
+                window['-OUTPUT-'].update(f"beginning to create upload directories and files\n", append=True)
+                if values['-UploadStaging-'] != "":
                     upload_folder = values['-UploadStaging-']
                 else:
                     upload_folder = f"{target_folder}_upload"
                 for post in preservation_directories:
+                    post = post.replace("/preservation2", "")
                     for dirpath, dirnames, filenames in os.walk(post):
-                        filename1 = os.path.join(dirpath, filename)
-                        filename2 = filename1.replace(target_folder, upload_folder)
-                        create_directory(filename2)
-                        shutil.copy2(filename1, filename2)
-                        shutil.copystat(filename1, filename2)
-                        window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
+                        for filename in filenames:
+                            filename1 = os.path.join(dirpath, filename)
+                            filename2 = filename1.replace(target_folder, upload_folder)
+                            create_directory(filename2)
+                            shutil.copy2(filename1, filename2)
+                            shutil.copystat(filename1, filename2)
+                            window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
                 window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
 
         upload_list = set()
