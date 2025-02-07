@@ -738,16 +738,26 @@ def twitter_correspondence(source_folder=str, target_folder=str):
     r.close()
 
 # get media directly from online instead of from twitter archive
-def tweet_media_handler(url, filename):
+def tweet_media_handler(url, filename, profile_media_directory):
+    # make sure target directory exists
     if not os.path.exists(os.path.dirname(filename)):
         os.makedirs(os.path.dirname(filename), exist_ok=True)
-    tweet_media = requests.get(url, stream=True)
-    if tweet_media.status_code == 200:
-        filename = filename.replace('?', '')
-        with open(filename, 'wb') as f:
-            for chunk in tweet_media.iter_content(1024):
-                f.write(chunk)
-        f.close()
+    # try to locate the file in the extracted profile media and copy over
+    for dirpath, dirnames, filenames in os.walk(profile_media_directory):
+        for my_filename in filenames:
+            if filename.split("/")[-1].split("\\")[-1].split(".")[0] in my_filename:
+                my_filename = os.path.join(dirpath, my_filename)
+                shutil.copy2(my_filename, filename)
+                shutil.copystat(my_filename, filename)
+    # do file exist check and if profile media wasn't found for some reason, try to harvest it from the website instead
+    if not os.path.isfile(filename):
+        tweet_media = requests.get(url, stream=True)
+        if tweet_media.status_code == 200:
+            filename = filename.replace('?', '')
+            with open(filename, 'wb') as f:
+                for chunk in tweet_media.iter_content(1024):
+                    f.write(chunk)
+            f.close()
 
 # workhorse to tweets
 def tweet_handler(source_folder, target_folder):
@@ -889,14 +899,16 @@ def tweet_handler(source_folder, target_folder):
             # add tweet to list of tweets processed this go-around
             id_list2.append(str(tweet['id_str']))
             # get banner image for backlog depository to ensure everything is there
-            profile_image_filename = f"{baseline}profile_image/{tweet['user']['profile_image_url_https'].split('/')[-1]}"
+            profile_image = tweet['user']['profile_image_url_https'].split("/")[-1]
+            profile_image_filename = f"{baseline}profile_image/{profile_image}"
             profile_image_url = tweet['user']['profile_image_url_https']
+            user_image_set = []
             if not os.path.isfile(profile_image_filename):
-                tweet_media_handler(profile_image_url, profile_image_filename)
+                tweet_media_handler(profile_image_url, profile_image_filename, f"{valuables['source_dir']}profile_media")
             profile_banner_filename = f"{baseline}profile_banner/{tweet['user']['profile_banner_url'].split('/')[-1]}"
             profile_banner_url = tweet['user']['profile_image_url_https']
             if not os.path.isfile(profile_banner_filename):
-                tweet_media_handler(profile_banner_url, profile_banner_filename)
+                tweet_media_handler(profile_banner_url, profile_banner_filename, f"{valuables['source_dir']}profile_media")
             # download the media files
             images = []
             if 'extended_entities' in tweet and tweet['extended_entities'] is not None and 'media' in tweet['extended_entities']:
@@ -912,14 +924,14 @@ def tweet_handler(source_folder, target_folder):
                                     media_filename = v['url'].split('.')[-1]
                                     media_filename = media_filename.split("?")[0]
                                     media_filename = f"{filepath1}{id}.{media_filename}"
-                                    tweet_media_handler(v['url'], media_filename)
+                                    tweet_media_handler(v['url'], media_filename, f"{valuables['source_dir']}tweet_media")
                                     bitrate = int(v['bitrate'])
                         # save thumbnail image with _thumb at the end to be clear what it is
                         media_filename = f"{filepath1}{media['id_str']}_thumb.{media['media_url'].split('.')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename)
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
                     else:
                         media_filename = f"{filepath1}{media['id_str']}.{media['media_url'].split('.')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename)
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
                     # add thumbnail or downloaded image to a list so it doesn't get done twice
                     images.append(id)
             # start looking at the other location of media references in the json
@@ -929,7 +941,7 @@ def tweet_handler(source_folder, target_folder):
                     if media['id_str'] not in images:
                         if media['type'] == "photo":
                             media_filename = f"{filepath1}{media['id_str']}.{media['media_url'].split('.')[-1]}"
-                            tweet_media_handler(media['media_url_https'], media_filename)
+                            tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
     with open(f"{baseline}log_tweetIDs.txt", "a") as f:
         for item in id_list2:
             f.write(f"{item}\n")
@@ -971,12 +983,54 @@ def facebook_correspondence(source_folder=str, target_folder=str):
 def facebook_handler(source_folder=str, target_folder=str):
     window['-OUTPUT-'].update(f"processing facebook download\n", append=True)
     my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
+    window['-OUTPUT-'].update("processing facebook posts\n", append=True)
+    window['-STATUS-'].update("Go get a cup of coffee, you deserve it\n", append=True, text_color="green2")
     valuables = {}
     valuables['base_location'] = target_folder
     valuables['source_dir'] = source_folder
     log = open("logger.txt", "a")
     id_list = []
     baseline = f"{valuables['base_location']}/"
+    fb_log = f"{baseline}/log_facebookIDs.txt"
+    if not os.path.isfile(fb_log):
+        create_directory(fb_log)
+        with open(fb_log, "a") as w:
+            window['-OUTPUT-'].update("facebook log file created\n", append=True)
+        w.close()
+    with open(fb_log, "r") as r:
+        for line in r:
+            id_list.append(line[:-1])
+    r.close()
+    window['-OUTPUT-'].update("list of existing posts compiled\n", append=True)
+    window['-OUTPUT-'].update("getting user data for posts\n", append=True)
+    id_list2 = []
+    user_data_file = f"{valuables['source_dir']}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
+    user_data = {}
+    with open(user_data_file, "r") as r:
+        json_data = r.read()
+        user = json.loads(json_data)
+        username = user['prodash_activity'][0]['page_name']
+        user_data['name'] = username
+        user_data['screen_name'] = username
+    user_id_options = [f"{valuables['source_dir']}/this_profile's_activity_across_facebook/posts/profile_posts_1.json",
+                       f"{valuables['source_dir']}/this_profile's_activity_across_facebook/events/events.json",
+                       f"{valuables['source_dir']}/this_profile's_activity_across_facebook/posts/videos.json",
+                       f"{valuables['source_dir']}/this_profile's_activity_across_facebook/comments_and_reactions/comments.json"]
+    user_id = ""
+    user_id_int = ""
+    # iterate over a few things to locate the user_id that'll be embedded with the posts
+    while user_id == "" and user_id_int == "":
+        for option in user_id_options:
+            if os.path.isfile(option):
+                with open(option, "r") as r:
+                    filedata = r.read()
+                    filedata = filedata.split(f":274:{username}")
+                    if len(filedata) > 1:
+                        user_id = filedata[0].split("@[")[-1]
+                        user_id_int = int(user_id)
+        # if can't find the user id crash the program so can see what happened
+        if user_id == "" and user_id_int == "":
+            sys.exit()
     print("something")
 
 
