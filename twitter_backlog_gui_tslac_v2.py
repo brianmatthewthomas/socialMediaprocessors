@@ -613,6 +613,19 @@ def normalize_youtube(preservation_directories=list):
                         json.dump(normalized_json, w)
                     w.close()
                     window['-OUTPUT-'].update(f"normalized json for {filename}\n", append=True)
+
+def normalize_youtube_activityStream(preservation_directories=list):
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    filename = os.path.join(dirpath, filename)
+                    # clear any existing normalized json data by switching data types and switching back
+                    normalized_json = 0
+                    normalized_json = dict()
+
+    print("something")
+
 def normalize_twitter(preservation_directories=list):
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}/preservation2"):
@@ -1031,6 +1044,82 @@ def facebook_handler(source_folder=str, target_folder=str):
         # if can't find the user id crash the program so can see what happened
         if user_id == "" and user_id_int == "":
             sys.exit()
+    user_data['id'] = user_id_int
+    user_data['id_str'] = user_id
+    window['-OUTPUT-'].update("account data and profile data loaded\n", append=True)
+    # aggregate the list of files needed to process a facebook account
+    my_precious_posts = f"{source_folder}/this_profile's_activity_across_facebook/posts"
+    my_precious_albums = f"{source_folder}/this_profile's_activity_across_facebook/posts/album"
+    my_precious_events = f"{source_folder}/this_profile's_activity_across_facebook/events"
+    my_precious_posts_list = [f for f in os.listdir(my_precious_posts) if os.path.isfile(f"{my_precious_posts}/{f}") and "facebook_editor" not in f]
+    my_precious_album_list = [f for f in os.listdir(my_precious_albums) if os.path.isfile(f"{my_precious_albums}/{f}")]
+    my_precious_event_list = ['events.json']
+    blank_post = {}
+    blank_metadata = {}
+    with open(f"{my_precious_events}/{my_precious_event_list}", 'r') as backlog:
+        json_data = backlog.read()
+        facebook = json.loads(json_data)
+        facebook = facebook['your_events_v2']
+        counter = 0
+        total = len(facebook)
+        blank_post = {}
+        for post in facebook:
+            counter +=1
+            new_post = blank_post
+            window['-PROGRESS-'].update_bar(counter, total)
+            text_string = ""
+            start_timestamp = post['start_timestamp']
+            end_timestamp = post['end_timestamp']
+            start_date = f"{str(datetime.datetime.fromtimestamp(start_timestamp))}"
+            end_date = f"{str(datetime.datetime.fromtimestamp(end_timestamp))}"
+            date_created = ""
+            if "create_timestamp" in post.keys():
+                date_created = str(post['create_timestamp'])
+                post_id = f"{str(start_date)[:10]}_{date_created}"
+            if date_created == "":
+                post_id = f"{str(start_date)[:10]}_{str(start_timestamp)}-{str(end_timestamp)}"
+                date_created = str(start_date)[:10]
+            print(post_id)
+            post['post_id'] = post_id
+            post['user'] = user_data
+            filepath = f"{baseline}/backlog/events/{post_id[:4]}/{post_id}/"
+            upload_list.add(filepath)
+            filename = f"{post_id}.txt"
+            master_post = f"{filepath}/{filename}"
+            create_directory(master_post)
+            master_post_text = json.loads(json.dumps(post))
+            with open(master_post, 'w') as w:
+                json.dumps(master_post_text, w)
+            w.close()
+            os.rename(master_post, f"{master_post[:-3]}json")
+            if 'attachments' in post.keys():
+                for attachment in post['attachments']:
+                    units = attachment['data']
+                    for unit in units:
+                        if "media" in unit.keys():
+                            mediafile = unit['media']['uri']
+                            media = mediafile.split("/")[-1]
+                            source_media = f"{source_folder}/{mediafile}"
+                            target_media = f"{filepath}/{media}"
+                            shutil.copy2(source_media, target_media)
+                            shutil.copystat(source_media, target_media)
+    for preciouses in my_precious_album_list:
+        with open(f"{my_precious_albums}/{preciouses}", "r") as r:
+            json_data = r.read()
+            print(f"album {preciouses}")
+            facebook = json.loads(json_data)
+            counter = 0
+            total = len(facebook['photos'])
+            timestamp = json_data['last_modified_timestamp']
+            timestamp_translated = str(datetime.datetime.fromtimestamp(json_data['last_modified_timestamp']))
+            post_id = f"{str(start_date)[:10]}_{str(json_data['name'])}"
+            json_data['post_id'] = post_id
+            json_data['user'] = user_data
+            filepath = f"{baseline}/backlog/albums/album{preciouses[:-5]}"
+            filename = f"{post_id}.txt"
+            master_post = f"{filepath}/{filename}"
+
+
     print("something")
 
 
