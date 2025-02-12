@@ -997,7 +997,7 @@ def facebook_handler(source_folder=str, target_folder=str):
     window['-OUTPUT-'].update(f"processing facebook download\n", append=True)
     my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
     window['-OUTPUT-'].update("processing facebook posts\n", append=True)
-    window['-STATUS-'].update("Go get a cup of coffee, you deserve it\n", append=True, text_color="green2")
+    window['-STATUS-'].update("Go get a cup of coffee, you deserve it\n", text_color="green2")
     valuables = {}
     valuables['base_location'] = target_folder
     valuables['source_dir'] = source_folder
@@ -1064,9 +1064,7 @@ def facebook_handler(source_folder=str, target_folder=str):
         total = len(facebook)
         blank_post = {}
         for post in facebook:
-            counter +=1
             new_post = blank_post
-            window['-PROGRESS-'].update_bar(counter, total)
             text_string = ""
             start_timestamp = post['start_timestamp']
             end_timestamp = post['end_timestamp']
@@ -1082,6 +1080,7 @@ def facebook_handler(source_folder=str, target_folder=str):
             print(post_id)
             post['post_id'] = post_id
             post['user'] = user_data
+            post['post_type'] = "facebook_event"
             filepath = f"{baseline}/backlog/events/{post_id[:4]}/{post_id}/"
             upload_list.add(filepath)
             filename = f"{post_id}.txt"
@@ -1103,18 +1102,23 @@ def facebook_handler(source_folder=str, target_folder=str):
                             target_media = f"{filepath}/{media}"
                             shutil.copy2(source_media, target_media)
                             shutil.copystat(source_media, target_media)
+            window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
+            counter +=1
+            window['-Progress-'].update_bar(counter, total)
+            id_list2.append(post_id)
+    total = len(my_precious_album_list)
+    counter = 0
     for preciouses in my_precious_album_list:
         with open(f"{my_precious_albums}/{preciouses}", "r") as r:
             json_data = r.read()
             print(f"album {preciouses}")
             facebook = json.loads(json_data)
-            counter = 0
-            total = len(facebook['photos'])
             timestamp = facebook['last_modified_timestamp']
             timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
             post_id = f"{str(timestamp_translated)[:10]}_{str(facebook['name'])}"
             facebook['post_id'] = post_id
             facebook['user'] = user_data
+            facebook['post_type'] = "facebook_album"
             filepath = f"{baseline}/backlog/albums/album{preciouses[:-5]}"
             filename = f"{post_id}.txt"
             master_post = f"{filepath}/{filename}"
@@ -1141,6 +1145,10 @@ def facebook_handler(source_folder=str, target_folder=str):
                     target_media = f"{filepath}/{fb_media.split('/')[-1]}"
                     shutil.copy2(fb_media, target_media)
                     shutil.copystat(fb_media, target_media)
+        counter += 1
+        window['-Progress-'].update_bar(counter, total)
+        window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
+        id_list2.append(post_id)
     for preciouses in my_precious_posts_list:
         with open(f"{my_precious_posts}/{preciouses}", 'r') as r:
             json_data = r.read()
@@ -1149,12 +1157,15 @@ def facebook_handler(source_folder=str, target_folder=str):
             # handle other photos deal, merging into saved posts
             if "other_photos_v2" in facebook.keys():
                 facebook = facebook['other_photos_v2']
+                total = len(facebook)
+                counter = 0
                 for post in facebook:
                     timestamp = post['creation_timestamp']
                     timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
                     post_id = f"{str(timestamp_translated)[:10]}_{str(timestamp)}"
                     post['post_id'] = post_id
                     post['user'] = user_data
+                    post['post_type'] = "facebook_otherPhotos"
                     filepath = f"{baseline}/backlog/other_photos/{post_id[:4]}/{post_id}"
                     filename = f"{post_id}.txt"
                     master_post = f"{filepath}/{filename}"
@@ -1168,6 +1179,10 @@ def facebook_handler(source_folder=str, target_folder=str):
                     target_media = f"{filepath}/{fb_media.split('/')[-1]}"
                     shutil.copy2(fb_media, target_media)
                     shutil.copystat(fb_media, target_media)
+                    counter += 1
+                    window['-Progress-'].update_bar(counter, total)
+                    window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
+                    id_list2.append(post_id)
             # work on the videos post files
             if "videos_v2" in facebook.keys():
                 facebook = facebook['videos_v2']
@@ -1179,6 +1194,7 @@ def facebook_handler(source_folder=str, target_folder=str):
                     post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
                     post['post_id'] = post_id
                     post['user'] = user_data
+                    post['post_type'] = "facebook_video"
                     filepath = f"{baseline}/backlog/videos/{post_id[:4]}/{post_id}"
                     filename = f"{post_id}.txt"
                     master_post = f"{filepath}/{filename}"
@@ -1195,16 +1211,18 @@ def facebook_handler(source_folder=str, target_folder=str):
                     counter += 1
                     window['-Progress-'].update_bar(counter, total)
                     window['-OUTPUT-'].update(f"Processed {post_id}\n", append=True)
+                    id_list2.append(post_id)
             # for handling proper posts
             else:
                 total = len(facebook)
-                counter
+                counter = 0
                 for post in facebook:
                     timestamp = post['timestamp']
                     timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
                     post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
                     post['post_id'] = post_id
                     post['user'] = user_data
+                    post['post_type'] = "facebook_post"
                     filepath = f"{baseline}/backlog/posts/{post_id[:4]}/{post_id}"
                     filename = f"{post_id}.txt"
                     master_post = f"{filepath}/{filename}"
@@ -1224,9 +1242,15 @@ def facebook_handler(source_folder=str, target_folder=str):
                                     target_media = f"{filepath}/{fb_media.split('/')[-1]}"
                                     shutil.copy2(fb_media, target_media)
                                     shutil.copystat(fb_media, target_media)
-
-
-
+                    counter += 1
+                    window['-Progress-'].update_bar(counter, total)
+                    window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
+                    id_list2.append(post_id)
+    id_list2.sort()
+    with open(fb_log, "a") as w:
+        for item in id_list2:
+            w.write(f"{item}\n")
+    w.close()
     print("something")
 
 
