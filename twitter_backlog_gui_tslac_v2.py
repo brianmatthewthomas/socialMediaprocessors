@@ -1110,14 +1110,121 @@ def facebook_handler(source_folder=str, target_folder=str):
             facebook = json.loads(json_data)
             counter = 0
             total = len(facebook['photos'])
-            timestamp = json_data['last_modified_timestamp']
-            timestamp_translated = str(datetime.datetime.fromtimestamp(json_data['last_modified_timestamp']))
-            post_id = f"{str(start_date)[:10]}_{str(json_data['name'])}"
-            json_data['post_id'] = post_id
-            json_data['user'] = user_data
+            timestamp = facebook['last_modified_timestamp']
+            timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
+            post_id = f"{str(timestamp_translated)[:10]}_{str(facebook['name'])}"
+            facebook['post_id'] = post_id
+            facebook['user'] = user_data
             filepath = f"{baseline}/backlog/albums/album{preciouses[:-5]}"
             filename = f"{post_id}.txt"
             master_post = f"{filepath}/{filename}"
+            create_directory(master_post)
+            with open(master_post, 'w') as w:
+                json.dumps(facebook, w)
+            w.close()
+            os.rename(master_post, f"{master_post[:-3]}json")
+            # now deal with the media in the album
+            if 'photos' in facebook.keys():
+                for photo in facebook['photos']:
+                    fb_media = f"{source_folder}/{photo['uri']}"
+                    target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                    shutil.copy2(fb_media, target_media)
+                    shutil.copystat(fb_media, target_media)
+            if "cover_photo" in facebook.keys():
+                fb_media = f"{source_folder}/{facebook['cover_photo']['uri']}"
+                target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                shutil.copy2(fb_media, target_media)
+                shutil.copystat(fb_media, target_media)
+            if "videos" in facebook.keys():
+                for video in facebook['videos']:
+                    fb_media = f"{source_folder}/{video['uri']}"
+                    target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                    shutil.copy2(fb_media, target_media)
+                    shutil.copystat(fb_media, target_media)
+    for preciouses in my_precious_posts_list:
+        with open(f"{my_precious_posts}/{preciouses}", 'r') as r:
+            json_data = r.read()
+            print(f"post file {preciouses}")
+            facebook = json.loads(json_data)
+            # handle other photos deal, merging into saved posts
+            if "other_photos_v2" in facebook.keys():
+                facebook = facebook['other_photos_v2']
+                for post in facebook:
+                    timestamp = post['creation_timestamp']
+                    timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
+                    post_id = f"{str(timestamp_translated)[:10]}_{str(timestamp)}"
+                    post['post_id'] = post_id
+                    post['user'] = user_data
+                    filepath = f"{baseline}/backlog/other_photos/{post_id[:4]}/{post_id}"
+                    filename = f"{post_id}.txt"
+                    master_post = f"{filepath}/{filename}"
+                    create_directory(master_post)
+                    with open(master_post, "w") as w:
+                        json.dumps(post, w)
+                    w.close()
+                    os.rename(master_post, f"{master_post[:-3]}json")
+                    # now deal with the media
+                    fb_media = f"{source_folder}/{post['uri']}"
+                    target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                    shutil.copy2(fb_media, target_media)
+                    shutil.copystat(fb_media, target_media)
+            # work on the videos post files
+            if "videos_v2" in facebook.keys():
+                facebook = facebook['videos_v2']
+                counter = 0
+                total = len(facebook)
+                for post in facebook:
+                    timestamp = post['creation_timestamp']
+                    timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
+                    post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
+                    post['post_id'] = post_id
+                    post['user'] = user_data
+                    filepath = f"{baseline}/backlog/videos/{post_id[:4]}/{post_id}"
+                    filename = f"{post_id}.txt"
+                    master_post = f"{filepath}/{filename}"
+                    create_directory(master_post)
+                    with open(master_post, 'w') as w:
+                        json.dumps(post, w)
+                    w.close()
+                    os.rename(master_post, f"{master_post[:-3]}json")
+                    # deal with the media files
+                    fb_media = f"{source_folder}/{post['uri']}"
+                    target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                    shutil.copy2(fb_media, target_media)
+                    shutil.copystat(fb_media, target_media)
+                    counter += 1
+                    window['-Progress-'].update_bar(counter, total)
+                    window['-OUTPUT-'].update(f"Processed {post_id}\n", append=True)
+            # for handling proper posts
+            else:
+                total = len(facebook)
+                counter
+                for post in facebook:
+                    timestamp = post['timestamp']
+                    timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
+                    post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
+                    post['post_id'] = post_id
+                    post['user'] = user_data
+                    filepath = f"{baseline}/backlog/posts/{post_id[:4]}/{post_id}"
+                    filename = f"{post_id}.txt"
+                    master_post = f"{filepath}/{filename}"
+                    create_directory(master_post)
+                    with open(master_post, 'w') as w:
+                        json.dumps(post, w)
+                    w.close()
+                    os.rename(master_post, f"{master_post[:-3]}json")
+                    # deal with any media
+                    if "attachments" in post.keys():
+                        attachment_list = post['attachments']
+                        for attachment in attachment_list:
+                            attachment = attachment['data']
+                            for x in attachment:
+                                if "media" in x.keys():
+                                    fb_media = f"{source_folder}/{x['media']['uri']}"
+                                    target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                                    shutil.copy2(fb_media, target_media)
+                                    shutil.copystat(fb_media, target_media)
+
 
 
     print("something")
