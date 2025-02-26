@@ -484,6 +484,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                 line = line.split(" ")[-1]
                 id_list2.append(line)
     # get directories with  applicable video ids
+    filename_list = []
     for dirpath, dirnames, filenames in os.walk(target):
         for filename in filenames:
             best_dir = dirpath.split("/")[-1].split("\\")[-1]
@@ -494,11 +495,12 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
             video_formats = ['m4a', 'mhtml', 'mp4', 'webm', 'mkv']
             if filename.endswith(".json"):
                 filename = os.path.join(dirpath, filename)
+                filename_list.append(filename)
                 with open(filename, "r") as r:
                     filedata = r.read()
                     json_data = json.loads(filedata)
                     if "thumbnail" in json_data.keys():
-                        thumbnail_name = f"{filename[:-5]}_thumbnail.jpg"
+                        thumbnail_name = f"{filename[:-9]}_thumbnail.jpg"
                         if not os.path.isfile(thumbnail_name):
                             my_thumbnail = requests.get(json_data['thumbnail'], stream=True)
                             if my_thumbnail.status_code == 200:
@@ -506,15 +508,37 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                                     for chunk in my_thumbnail.iter_content(1024):
                                         f.write(chunk)
                                 f.close()
-                    harvested_flag = False
+                    elif "thumbnails" in json_data.keys():
+                        thumbnail_name = f"{filename[:-9]}_thumbnail"
+                        counter = len(json_data['thumbnails'])
+                        status = 0
+                        if not os.path.isfile(thumbnail_name):
+                            while status != 200:
+                                for thumbnail in reversed(json_data['thumbnails']):
+                                    if status != 200:
+                                        my_thumbnail = requests.get(thumbnail['url'], stream=True)
+                                        if my_thumbnail.status_code == 200:
+                                            counter = counter - 1
+                                            with open(f"{thumbnail_name}{str(counter)}.jpg", 'wb') as f:
+                                                for chunk in my_thumbnail.iter_content(1024):
+                                                    f.write(chunk)
+                                            f.close()
+                                            window['-OUTPUT-'].update(f"got thumbnail for {filename}\n", append=True)
+                                            status = 200
+                                window['-OUTPUT-'].update(f"failed to get thumbnail for {filename}\n", append=True)
+                                status = 200
+
+
+                    '''harvested_flag = False
                     for item in video_formats:
                         video_file = f"{filename[:-9]}{item}"
                         if os.path.isfile(video_file):
                             harvested_flag = True
                     if harvested_flag is False and '"_type": "video"' in filedata:
                         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            ydl.download(json_data['webpage_url'])
-                    os.rename(filename, f"{filename[:-9]}json")
+                            ydl.download(json_data['webpage_url'])'''
+    for item in filename_list:
+        os.rename(item, f"{item[:-9]}json")
 
     window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
     upload_list = list(upload_list)
@@ -658,6 +682,8 @@ def normalize_youtube_activityStream(preservation_directories=list):
                     master_count += 1
     current_count = 0
     video_formats = ['m4a', 'mhtml', 'mp4', 'webm', 'mkv']
+    playlist_directory = {}
+    playlist_item_listing = {}
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
             for filename in filenames:
@@ -672,28 +698,45 @@ def normalize_youtube_activityStream(preservation_directories=list):
                     with open(filename, 'r') as r:
                         filedata = r.read()
                         json_data = json.loads(filedata)
-                        normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams"]
+                        normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams", {"youtube": 'https:///www.youtube.com'}]
                         normalized_json['context'] = "YouTube"
                         normalized_json['id'] = json_data['id']
                         normalized_json['name'] = json_data['title']
                         normalized_json['content'] = json_data['description']
+                        text_block = f"{normalized_json['name']} {normalized_json['content']}"
+                        normalized_json['actor'] = []
+                        normalized_json['engagement'] = []
+                        normalized_json['engagement'].append({'type': 'Views', 'count': json_data['view_count']})
+                        normalized_json['engagement'].append({'type': 'followers', 'count': json_data['channel_follower_count']})
+                        if "comment_count" in json_data.keys():
+                            normalized_json['engagement'].append({'type': 'comments', 'count': json_data['comment_count']})
+                        normalized_json.append({'type': "YouTube Account",
+                                                'id': json_data['uploader_id'],
+                                                'name': json_data['uploader'],
+                                                'url': json_data['channel_url']})
                         if '"_type": "playlist"' in filedata:
+                            playlist_directory[json_data['title']] = filename
+                            normalized_json['name'] = f"Playlist: {normalized_json['name']}"
                             normalized_json['type'] = "Collection"
-                            normalized_json['totalItems'] = json_data['playlist_count']
                             if "modified_date" in json_data.keys():
                                 normalized_json['updated'] = f"{json_data['modified_date'][:4]}-{json_data['modified_date'][4:6]}-{json_data['modified_date'][6:8]}"
                             normalized_json['url'] = json_data['webpage_url']
+                            if "thumbnails" in json_data.keys():
+                                root_thumbnail_name = f"{filename[:-4]}_thumbnail"
+                                for item in json_data['thumbnails']:
+                                    thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
+                                    if os.path.isfile(thumbnail_name):
+                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
+                            normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
                             normalized_json['mediaType'] = f"video/{json_data['ext']}"
                             normalized_json['type'] = "Video"
                             base_filename = filename[:-9]
-                            for item in video_formats:
-                                if os.path.isfile(f"{base_filename}{item}"):
-                                    normalized_json['url'] = f"{filename1[:-9]}{item}"
+                            if os.path.isfile(f"{base_filename}{json_data['ext']}"):
+                                normalized_json['url'] = f"{filename1[:-9]}{json_data['ext']}"
                             if "url" not in normalized_json.keys():
-                                if '"_type": "video"' in filedata:
-                                    normalized_json['url'] = json_data['webpage_url']
-                                    normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
+                                normalized_json['url'] = json_data['webpage_url']
+                                normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
                             if "release_timestamp" in json_data.keys():
                                 normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['release_timestamp']))
                             else:
@@ -711,12 +754,8 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                     hours = int(str(minutes/60).split('.')[0])
                                     minutes = minutes-(hours*60)
                                     normalized_json['duration'] = f"{str(hours)}:{str(minutes)}:{str(seconds)}"
-
-                            normalized_json['actor'] = []
-                            normalized_json.append({'type': "YouTube Account",
-                                                    'id': json_data['uploader_id'],
-                                                    'name': json_data['uploader'],
-                                                    'url': json_data['uploader_url']})
+                            else:
+                                normalized_json['duration'] = "Unspecified"
                             if "thumbnail" in json_data.keys():
                                 normalized_json['preview'] = {}
                                 my_thumbnail = json_data['thumbnail']
@@ -733,11 +772,49 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                 normalized_json['preview']['url']['href'] = my_thumbnail['url'].split("/")[-1]
                                 if len(my_thumbnail['url'].split('.')) > 1:
                                     normalized_json['preview']['url']['mediaType'] = f"image/{my_thumbnail['url'].split('.')[-1]}"
-
-
+                                normalized_json['engagement'].append({'type': "Like", 'count': json_data['like_count']})
+                            # append some playlist data to playlist_items so it can be merged into that file
+                            if "playlist" in json_data.keys():
+                                normalized_json['partOf'] = json_data['playlist']
+                                if not json_data['playlist'] in playlist_item_listing.keys():
+                                    playlist_item_listing[json_data['playlist']] = []
+                                playlist_item_listing[json_data['playlist']].append({'type': "Video",
+                                                                                     "name": normalized_json['name'],
+                                                                                     "url": normalized_json['url'],
+                                                                                     'duration': normalized_json['duration']})
+                            normalized_json['youtube:live_status'] = json_data['live_status']
+                            normalized_json['youtube:is_live'] = json_data['is_live']
+                            normalized_json['youtube:was_live'] = json_data['was_live']
+                            normalized_json['youtube:playable_in_embed'] = json_data['playable_in_embed']
+                            normalized_json = normalization_tags(normalized_json, text_block, 'youtube')
+                            if "categories" in json_data.keys():
+                                if json_data['categories'] != []:
+                                    if "tags" not in normalized_json.keys():
+                                        normalized_json['tags'] = []
+                                    for category in json_data['categories']:
+                                        normalized_json['tags'].append({'type': 'category',
+                                                                        'id': category,
+                                                                        'name': category})
+                    with open(filename, 'w') as w:
+                        json.dump(normalized_json, w)
+                    w.close()
                     current_count += 1
                     window['-Progress-'].update_bar(current_count, master_count)
-
+    #loop back to add in playlist items if not already present in the normalized json data
+    for item in playlist_directory.keys():
+        #if both the playlist and a listing of videos are in their respective listings, proceed
+        if item in playlist_item_listing.keys():
+            with open(playlist_directory[item], "r") as r:
+                filedata = r.read()
+                json_data = json.loads(filedata)
+                if "items" not in json_data.keys():
+                    json_data['items'] = []
+                for my_video in playlist_item_listing[item]:
+                    if my_video not in json_data["items"]:
+                        json_data['items'].append(my_video)
+                with open(playlist_directory[item], 'w') as w:
+                    json.dump(json_data, w)
+                w.close()
 
 
     print("something")
@@ -1128,7 +1205,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                                           }}
                         if json_data['post_type'] == "facebook_album":
                             text_block = f"{json_data['description']} {json_data['name']}"
-                            normalized_json = normalization_tags(normalized_json, text_block)
+                            normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
                             normalized_json['content'] = json_data['description']
                             normalized_json['@context'].append({'dcterms': 'http://purl.org/dc/terms/',
                                                             'exif': 'http://www.w3.org/2003/12/exif/ns'})
@@ -1153,7 +1230,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                 if "description" in item.keys():
                                     short_dictionary['description'] = item['description']
                                     mini_textblock = f"{mini_textblock} {item['description']}"
-                                short_dictionary = normalization_tags(short_dictionary, mini_textblock)
+                                short_dictionary = normalization_tags(short_dictionary, mini_textblock, 'facebook')
                                 normalized_json['items'].append(short_dictionary)
                         if json_data['post_type'] == "facebook_event":
                             normalized_json['type'] = "Event"
@@ -1168,7 +1245,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             if "description" in json_data.keys():
                                 text_block = f"{text_block} {json_data['description']}"
                                 normalized_json['content'] = json_data['description']
-                            normalized_json = normalization_tags(normalized_json, text_block)
+                            normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
                             if "place" in json_data.keys():
                                 normalized_json['location'] = {'name': json_data['place']['name'],
                                                                'type': 'Place'}
@@ -1181,7 +1258,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             if "description" in json_data.keys():
                                 text_block = f"{json_data['description']}"
                                 normalized_json['content'] = json_data['description']
-                            normalized_json = normalization_tags(normalized_json, text_block)
+                            normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
                             normalized_json['@context'].append({'dcterms': 'http://purl.org/dc/terms/',
                                                                 'exif': 'http://www.w3.org/2003/12/exif/ns'})
                             normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
@@ -1204,7 +1281,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                                                 'exif': 'http://www.w3.org/2003/12/exif/ns'})
                             normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
                             normalized_json['summary'] = f"Facebook post: Post ID {json_data['post_id']}"
-                            normalized_json = normalization_tags(normalized_json, text_block)
+                            normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
                             if "title" in json_data.keys():
                                 normalized_json['name'] = json_data['title']
                             short_dictionary = {'type': "Video",
@@ -1270,7 +1347,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                                     short_dictionary['type'] = "Video"
                                                     short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "video")
                                                     short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['video_metadata']['exif_data'])
-                                            short_dictionary = normalization_tags(short_dictionary, mini_textblock)
+                                            short_dictionary = normalization_tags(short_dictionary, mini_textblock, 'facebook')
                                             normalized_json['attachments'].append(short_dictionary)
                                             text_block = f"{text_block} {mini_textblock}"
                                         if "place" in single_attachment.keys():
@@ -1311,7 +1388,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                     else:
                                         normalized_json['location'] = location_list
                             text_block = text_block.replace("  ", " ")
-                            normalized_json = normalization_tags(normalized_json, text_block)
+                            normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
                         # try to de-dupe tags just in case dupes got in
                         if "tags" in normalized_json:
                             my_tags = []
@@ -1334,7 +1411,7 @@ def facebook_mediaExif_extractor(short_dictionary, exifchunk):
             short_dictionary[f'exif:{key}'] = exif_data[key]
     return short_dictionary
 
-def normalization_tags(normalized_json, text_block):
+def normalization_tags(normalized_json, text_block, platform):
     text_block = text_block.replace("\n", " ")
     linklist = split_url(text_block)
     hashlist = split_hashtag(text_block)
@@ -1343,9 +1420,14 @@ def normalization_tags(normalized_json, text_block):
         normalized_json['tags'] = []
         if len(hashlist) > 0:
             for hashtag in hashlist:
-                normalized_json['tags'].append({'type': "Hashtag",
-                                                'id': f'https://www.facebook.com/hashtag/{hashtag[1:]}',
-                                                'name': hashtag})
+                if platform == "facebook":
+                    normalized_json['tags'].append({'type': "Hashtag",
+                                                    'id': f'https://www.facebook.com/hashtag/{hashtag[1:]}',
+                                                    'name': hashtag})
+                if platform == "youtube":
+                    normalized_json['tags'].append({'type': "Hashtag",
+                                                    'id': f"https://www.youtube.com/hashtag/{hashtag[1:]}",
+                                                    'name': hashtag})
         if len(mentionlist) > 0:
             for mention in mentionlist:
                 normalized_json['tags'].append({'type': 'Mention',
