@@ -10,6 +10,7 @@ import json
 import hashlib
 import shutil
 import sys
+import requests
 import threading
 import uuid
 import lxml.etree as ET
@@ -369,6 +370,16 @@ def extract_social_archive(source_zip=str, target_dir=str):
 def create_preservation(target_folder=str):
     # create set of directories for preservation action once subfoldering is completed
     preservation_directories = set()
+    # get data for progress bar
+    window['-OUTPUT-'].update(f"retrieving file counts for progress bar\n", append=True)
+    master_count = 0
+    for dirpath, dirnames, filenames in os.walk(target_folder):
+        for filename in filenames:
+            if not dirpath.endswith("preservation1"):
+                if not dirpath.endswith("preservation2"):
+                    master_count += 1
+    window['-OUTPUT-'].update(f"progress bar info compiled\n", append=True)
+    current_count = 0
     # go directly to posts subdirectory
     for dirpath, dirnames, filenames in os.walk(target_folder):
         for filename in filenames:
@@ -389,6 +400,8 @@ def create_preservation(target_folder=str):
                         os.rename(filename1, preservation_file)
                         window['-OUTPUT-'].update(f"{filename1} moved to normalization and preservation directories\n", append=True)
                         preservation_directories.add(normalization_directory)
+                        current_count += 1
+                        window['-Progress-'].update_bar(current_count, master_count)
     window['-OUTPUT-'].update(f"preservation/normalization foldering completed, moving to next steps")
     preservation_directories = list(preservation_directories)
     preservation_directories.sort()
@@ -478,6 +491,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                 if item in best_dir:
                     upload_list.add(dirpath)
             # harvest down a thumbnail if possible while we are here
+            video_formats = ['m4a', 'mhtml', 'mp4', 'webm', 'mkv']
             if filename.endswith(".json"):
                 filename = os.path.join(dirpath, filename)
                 with open(filename, "r") as r:
@@ -492,6 +506,16 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                                     for chunk in my_thumbnail.iter_content(1024):
                                         f.write(chunk)
                                 f.close()
+                    harvested_flag = False
+                    for item in video_formats:
+                        video_file = f"{filename[:-9]}{item}"
+                        if os.path.isfile(video_file):
+                            harvested_flag = True
+                    if harvested_flag is False and '"_type": "video"' in filedata:
+                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                            ydl.download(json_data['webpage_url'])
+                    os.rename(filename, f"{filename[:-9]}json")
+
     window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
     upload_list = list(upload_list)
     upload_list.sort()
@@ -624,10 +648,21 @@ def normalize_youtube(preservation_directories=list):
                     window['-OUTPUT-'].update(f"normalized json for {filename}\n", append=True)
 
 def normalize_youtube_activityStream(preservation_directories=list):
+    #create counter to help with tracking progress
+    window['-OUTPUT-'].update("getting count for things to normalize for progress bar\n", append=True)
+    master_count = 0
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(preservation_directory):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    master_count += 1
+    current_count = 0
+    video_formats = ['m4a', 'mhtml', 'mp4', 'webm', 'mkv']
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
             for filename in filenames:
                 if filename.endswith(".json"):
+                    filename1 = filename
                     filename = os.path.join(dirpath, filename)
                     window['-OUTPUT-'].update(f"Working on {filename}\n", append=True)
                     print(filename)
@@ -638,20 +673,70 @@ def normalize_youtube_activityStream(preservation_directories=list):
                         filedata = r.read()
                         json_data = json.loads(filedata)
                         normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams"]
-                        normalized_json['platform'] = "YouTube"
+                        normalized_json['context'] = "YouTube"
                         normalized_json['id'] = json_data['id']
-                        normalized_json['type'] = "Video"
                         normalized_json['name'] = json_data['title']
                         normalized_json['content'] = json_data['description']
-                        normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['timestamp']))
-                        if "duration_string" in json_data.keys():
-                            normalized_json["duration"] = json_data['duration_string']
-                        normalized_json['actor'] = []
-                        normalized_json.append({'type': "YouTube Account",
-                                                'id': json_data['uploader_id'],
-                                                'name': json_data['uploader'],
-                                                'url': json_data['uploader_url']})
+                        if '"_type": "playlist"' in filedata:
+                            normalized_json['type'] = "Collection"
+                            normalized_json['totalItems'] = json_data['playlist_count']
+                            if "modified_date" in json_data.keys():
+                                normalized_json['updated'] = f"{json_data['modified_date'][:4]}-{json_data['modified_date'][4:6]}-{json_data['modified_date'][6:8]}"
+                            normalized_json['url'] = json_data['webpage_url']
+                        if '"_type": "video"' in filedata:
+                            normalized_json['mediaType'] = f"video/{json_data['ext']}"
+                            normalized_json['type'] = "Video"
+                            base_filename = filename[:-9]
+                            for item in video_formats:
+                                if os.path.isfile(f"{base_filename}{item}"):
+                                    normalized_json['url'] = f"{filename1[:-9]}{item}"
+                            if "url" not in normalized_json.keys():
+                                if '"_type": "video"' in filedata:
+                                    normalized_json['url'] = json_data['webpage_url']
+                                    normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
+                            if "release_timestamp" in json_data.keys():
+                                normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['release_timestamp']))
+                            else:
+                                normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['timestamp']))
+                            if "duration_string" in json_data.keys():
+                                normalized_json["duration"] = json_data['duration_string']
+                            # if the string version of video duration isn't available, try to calculate it manually
+                            elif "duration" in json_data.keys():
+                                duration = json_data['duration']
+                                minutes = int(str(duration/60).split('.')[0])
+                                seconds = duration-(minutes*60)
+                                normalized_json['duration'] = f"{str(minutes)}:{str(seconds)}"
+                                # in case it is longer than an hour
+                                if minutes >= 60:
+                                    hours = int(str(minutes/60).split('.')[0])
+                                    minutes = minutes-(hours*60)
+                                    normalized_json['duration'] = f"{str(hours)}:{str(minutes)}:{str(seconds)}"
 
+                            normalized_json['actor'] = []
+                            normalized_json.append({'type': "YouTube Account",
+                                                    'id': json_data['uploader_id'],
+                                                    'name': json_data['uploader'],
+                                                    'url': json_data['uploader_url']})
+                            if "thumbnail" in json_data.keys():
+                                normalized_json['preview'] = {}
+                                my_thumbnail = json_data['thumbnail']
+                                for thumbnail in json_data['thumbnails']:
+                                    if my_thumbnail == thumbnail['url']:
+                                        my_thumbnail = thumbnail
+                                normalized_json['preview']['type'] = "Image"
+                                normalized_json['preview']['name'] = "Thumbnail"
+                                if "height" in my_thumbnail.keys():
+                                    normalized_json['preview']['height'] = my_thumbnail['height']
+                                if "width" in my_thumbnail.keys():
+                                    normalized_json['preview']['width'] = my_thumbnail['width']
+                                normalized_json['preview']['url'] = {}
+                                normalized_json['preview']['url']['href'] = my_thumbnail['url'].split("/")[-1]
+                                if len(my_thumbnail['url'].split('.')) > 1:
+                                    normalized_json['preview']['url']['mediaType'] = f"image/{my_thumbnail['url'].split('.')[-1]}"
+
+
+                    current_count += 1
+                    window['-Progress-'].update_bar(current_count, master_count)
 
 
 
@@ -1002,6 +1087,15 @@ def normalize_facebook(preservation_directories=list):
 
 # activitystreams adapted normalization method
 def normalize_facebook_activityStream(preservation_directories=list):
+    #create counter to help with tracking progress
+    window['-OUTPUT-'].update("getting count for things to normalize for progress bar\n", append=True)
+    master_count = 0
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(preservation_directory):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    master_count += 1
+    current_count = 0
     for preservation_directory in preservation_directories:
         for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
             for filename in filenames:
@@ -1016,10 +1110,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                         filedata = r.read()
                         json_data = json.loads(filedata)
                         normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams"]
-                        normalized_json['platform'] = "Facebook"
+                        normalized_json['context'] = "Facebook"
                         normalized_json['id'] = json_data['post_id']
                         # set default type value to Post
-                        normalized_json['type'] = "Post"
+                        normalized_json['type'] = "Note"
                         normalized_json['actor'] = []
                         normalized_json['actor'].append({"type": "Facebook page",
                                                          "id": json_data['user']['id_str'],
@@ -1051,8 +1145,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                                     'dcterms:date.created': str(datetime.datetime.fromtimestamp(item['creation_timestamp']))}
                                 if len(short_dictionary['uri'].split(".")[-1]) == 3:
                                     short_dictionary['mediaType'] = f"image/{short_dictionary['uri'].split('.')[-1]}"
-                                if "exif_data" in item.keys():
-                                    short_dictionary = facebook_mediaExif_extractor(short_dictionary, item['exif_data'])
+                                if "media_metadata" in item.keys():
+                                    if "photo_metadata" in item['media_metadata'].keys():
+                                        if "exif_data" in item['media_metadata']['photo_metadata'].keys():
+                                            short_dictionary = facebook_mediaExif_extractor(short_dictionary, item['media_metadata']['photo_metadata']['exif_data'])
                                 mini_textblock = f"{item['title']}"
                                 if "description" in item.keys():
                                     short_dictionary['description'] = item['description']
@@ -1082,9 +1178,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                 if "address" in json_data['place'].keys():
                                     normalized_json['location']['address'] = json_data['place']['address']
                         if json_data['post_type'] == "facebook_otherPhotos":
-                            text_block = f"{json_data['description']}"
+                            if "description" in json_data.keys():
+                                text_block = f"{json_data['description']}"
+                                normalized_json['content'] = json_data['description']
                             normalized_json = normalization_tags(normalized_json, text_block)
-                            normalized_json['content'] = json_data['description']
                             normalized_json['@context'].append({'dcterms': 'http://purl.org/dc/terms/',
                                                                 'exif': 'http://www.w3.org/2003/12/exif/ns'})
                             normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
@@ -1100,12 +1197,13 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                         short_dictionary = facebook_mediaExif_extractor(short_dictionary, json_data['media_metadata']['photo_metadata']['exif_data'])
                             normalized_json['attachment'] = [short_dictionary]
                         if json_data['post_type'] == "facebook_video":
-                            normalized_json['content'] = json_data['description']
+                            if "description" in json_data.keys():
+                                normalized_json['content'] = json_data['description']
+                                text_block = f"{json_data['description']}"
                             normalized_json['@context'].append({'dcterms': 'http://purl.org/dc/terms/',
                                                                 'exif': 'http://www.w3.org/2003/12/exif/ns'})
                             normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
                             normalized_json['summary'] = f"Facebook post: Post ID {json_data['post_id']}"
-                            text_block = f"{json_data['description']}"
                             normalized_json = normalization_tags(normalized_json, text_block)
                             if "title" in json_data.keys():
                                 normalized_json['name'] = json_data['title']
@@ -1120,14 +1218,17 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                         short_dictionary = facebook_mediaExif_extractor(short_dictionary, json_data['media_metadata']['video_metadata']['exif_data'])
                             normalized_json['attachment'] = [short_dictionary]
                         if json_data['post_type'] == "facebook_post":
-                            normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
+                            if "creation_timestamp" in json_data.keys():
+                                normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
+                            else:
+                                normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['timestamp']))
                             normalized_json['content'] = ""
                             if "data" in json_data.keys():
                                 for data_chunk in json_data['data']:
                                     if "post" in data_chunk.keys():
                                         normalized_json['content'] = data_chunk['post']
                                     if "update_timestamp" in data_chunk.keys():
-                                        normalized_json['updated'] = str(datetime.datetime.fromtimestamp(data_chunk['timestamp']))
+                                        normalized_json['updated'] = str(datetime.datetime.fromtimestamp(data_chunk['update_timestamp']))
                             text_block = normalized_json['content']
                             if "title" in json_data.keys():
                                 normalized_json['summary'] = json_data['title']
@@ -1137,67 +1238,68 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                 location_list = []
                                 url_list = []
                                 for attachment in json_data['attachments']:
-                                    attachment_datas = attachment['data']
-                                    for attachment_data in attachment_datas:
-                                        for single_attachment in attachment_data:
-                                            # reset the short dictionary
-                                            short_dictionary = ""
-                                            short_dictionary = {}
-                                            if "media" in single_attachment.keys():
-                                                single_attachment = single_attachment['media']
-                                                short_dictionary = {'type': 'Media',
-                                                                    'uri': single_attachment['uri'].split('/')[-1],
-                                                                    'dcterms:date.created': str(
-                                                                        datetime.datetime.fromtimestamp(
-                                                                            single_attachment['creation_timestamp']))}
-                                                if len(short_dictionary['uri'].split(".")[-1]) == 3:
-                                                    short_dictionary['mediaType'] = f"media/{short_dictionary['uri'].split('.')[-1]}"
-                                                mini_textblock = ""
-                                                if "title" in single_attachment.keys():
-                                                    short_dictionary['name'] = single_attachment['title']
-                                                    mini_textblock = f"{mini_textblock} {single_attachment['title']}"
-                                                if "description" in attachment_data.keys():
-                                                    short_dictionary['description'] = single_attachment['description']
-                                                    mini_textblock = f"{mini_textblock} {single_attachment['description']}"
-                                                if "media_metadata" in single_attachment.keys():
-                                                    if "photo_metadata" in single_attachment['media_metadata']:
-                                                        short_dictionary['type'] = "Image"
-                                                        short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "image")
-                                                        short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['photo_metadata']['exif_data'])
-                                                    if "video_metadata" in single_attachment['media_metadata']:
-                                                        short_dictionary['type'] = "Video"
-                                                        short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "video")
-                                                        short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['video_metadata']['exif_data'])
-                                                short_dictionary = normalization_tags(short_dictionary, mini_textblock)
-                                                normalized_json['attachments'].append(short_dictionary)
-                                                text_block = f"{text_block} {mini_textblock}"
-                                            if "place" in single_attachment.keys():
-                                                single_attachment = single_attachment['place']
-                                                short_dictionary = {'name': single_attachment['name'],
-                                                                    'type': "Place"}
-                                                if "url" in single_attachment.keys():
-                                                    short_dictionary['url'] = single_attachment['url']
-                                                if "coordinate" in single_attachment.keys():
-                                                    short_dictionary['latitude'] = single_attachment['coordinate']['latitude']
-                                                    short_dictionary['longitude'] = single_attachment['coordinate']['longitude']
-                                                if "address" in single_attachment.keys():
-                                                    short_dictionary['address'] = single_attachment['address']
-                                                location_list.append(short_dictionary)
-                                            if "external_context" in single_attachment.keys():
-                                                single_attachment = single_attachment['external_context']
-                                                if "url" in single_attachment.keys():
-                                                    short_dictionary = {'type': 'Link',
-                                                                        'href': single_attachment['url']}
-                                                    url_list.append(short_dictionary)
-                                            if "event" in single_attachment.keys():
-                                                single_attachment = single_attachment['event']
-                                                short_dictionary = {'type': "Event",
-                                                                    'name': single_attachment['name'],
-                                                                    'startTime': str(datetime.datetime.fromtimestamp(single_attachment['start_timestamp']))}
-                                                if "end_timestamp" in single_attachment.keys():
-                                                    if single_attachment['end_timestamp'] > 0:
-                                                        short_dictionary['endTime'] = single_attachment['end_timestamp']
-                                                normalized_json['event'] = short_dictionary
+                                    attachment_data = attachment['data']
+                                    for single_attachment in attachment_data:
+                                        # reset the short dictionary
+                                        short_dictionary = ""
+                                        short_dictionary = {}
+                                        if "media" in single_attachment.keys():
+                                            single_attachment = single_attachment['media']
+                                            short_dictionary = {'type': 'Media',
+                                                                'uri': single_attachment['uri'].split('/')[-1],
+                                                                'dcterms:date.created': str(
+                                                                    datetime.datetime.fromtimestamp(
+                                                                        single_attachment['creation_timestamp']))}
+                                            if len(short_dictionary['uri'].split(".")[-1]) == 3:
+                                                short_dictionary['mediaType'] = f"media/{short_dictionary['uri'].split('.')[-1]}"
+                                            else:
+                                                short_dictionary['mediaType'] = "media/unknown"
+                                            mini_textblock = ""
+                                            if "title" in single_attachment.keys():
+                                                short_dictionary['name'] = single_attachment['title']
+                                                mini_textblock = f"{mini_textblock} {single_attachment['title']}"
+                                            if "description" in single_attachment.keys():
+                                                short_dictionary['description'] = single_attachment['description']
+                                                mini_textblock = f"{mini_textblock} {single_attachment['description']}"
+                                            if "media_metadata" in single_attachment.keys():
+                                                if "photo_metadata" in single_attachment['media_metadata']:
+                                                    short_dictionary['type'] = "Image"
+                                                    short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "image")
+                                                    short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['photo_metadata']['exif_data'])
+                                                if "video_metadata" in single_attachment['media_metadata']:
+                                                    short_dictionary['type'] = "Video"
+                                                    short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "video")
+                                                    short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['video_metadata']['exif_data'])
+                                            short_dictionary = normalization_tags(short_dictionary, mini_textblock)
+                                            normalized_json['attachments'].append(short_dictionary)
+                                            text_block = f"{text_block} {mini_textblock}"
+                                        if "place" in single_attachment.keys():
+                                            single_attachment = single_attachment['place']
+                                            short_dictionary = {'name': single_attachment['name'],
+                                                                'type': "Place"}
+                                            if "url" in single_attachment.keys():
+                                                short_dictionary['url'] = single_attachment['url']
+                                            if "coordinate" in single_attachment.keys():
+                                                short_dictionary['latitude'] = single_attachment['coordinate']['latitude']
+                                                short_dictionary['longitude'] = single_attachment['coordinate']['longitude']
+                                            if "address" in single_attachment.keys():
+                                                short_dictionary['address'] = single_attachment['address']
+                                            location_list.append(short_dictionary)
+                                        if "external_context" in single_attachment.keys():
+                                            single_attachment = single_attachment['external_context']
+                                            if "url" in single_attachment.keys():
+                                                short_dictionary = {'type': 'Link',
+                                                                    'href': single_attachment['url']}
+                                                url_list.append(short_dictionary)
+                                        if "event" in single_attachment.keys():
+                                            single_attachment = single_attachment['event']
+                                            short_dictionary = {'type': "Event",
+                                                                'name': single_attachment['name'],
+                                                                'startTime': str(datetime.datetime.fromtimestamp(single_attachment['start_timestamp']))}
+                                            if "end_timestamp" in single_attachment.keys():
+                                                if single_attachment['end_timestamp'] > 0:
+                                                    short_dictionary['endTime'] = single_attachment['end_timestamp']
+                                            normalized_json['event'] = short_dictionary
                                 if len(url_list) > 0:
                                     if len(url_list) == 1:
                                         normalized_json['url'] = url_list[0]
@@ -1210,10 +1312,20 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                         normalized_json['location'] = location_list
                             text_block = text_block.replace("  ", " ")
                             normalized_json = normalization_tags(normalized_json, text_block)
+                        # try to de-dupe tags just in case dupes got in
+                        if "tags" in normalized_json:
+                            my_tags = []
+                            for tag in normalized_json['tags']:
+                                if tag not in my_tags:
+                                    my_tags.append(tag)
+                            normalized_json['tags'] = my_tags
                         with open(filename, "w") as w:
                             json.dump(normalized_json, w)
                         w.close()
                         window['-OUTPUT-'].update(f"normalized {filename}\n", append=True)
+                        current_count += 1
+                        window['-Progress-'].update_bar(current_count, master_count)
+    window['-OUTPUT-'].update(f"normalization for facebook data complete\n", append=True)
 
 
 def facebook_mediaExif_extractor(short_dictionary, exifchunk):
@@ -1237,7 +1349,7 @@ def normalization_tags(normalized_json, text_block):
         if len(mentionlist) > 0:
             for mention in mentionlist:
                 normalized_json['tags'].append({'type': 'Mention',
-                                                'id': mention.split(":")[0],
+                                                'id': mention.split(":")[0][1:],
                                                 'name': mention.split(":")[-1]})
         if len(linklist) > 0:
             for linky in linklist:
