@@ -419,6 +419,7 @@ def ytdl_formatselector(ctx):
 
 # YouTube workhorse
 def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=str, comments=bool, target=str):
+    window['-OUTPUT-'].update("starting yt-dlt download and json aggregation process, \nyou will not see progress information until it is complete\n", append=True)
     upload_list = set()
     id_list = []
     create_directory(f"{target}/youtube.txt")
@@ -500,7 +501,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                     filedata = r.read()
                     json_data = json.loads(filedata)
                     if "thumbnail" in json_data.keys():
-                        thumbnail_name = f"{filename[:-9]}_thumbnail.jpg"
+                        thumbnail_name = f"{filename[:-10]}_thumbnail.jpg"
                         if not os.path.isfile(thumbnail_name):
                             my_thumbnail = requests.get(json_data['thumbnail'], stream=True)
                             if my_thumbnail.status_code == 200:
@@ -509,7 +510,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                                         f.write(chunk)
                                 f.close()
                     elif "thumbnails" in json_data.keys():
-                        thumbnail_name = f"{filename[:-9]}_thumbnail"
+                        thumbnail_name = f"{filename[:-10]}_thumbnail"
                         counter = len(json_data['thumbnails'])
                         status = 0
                         if not os.path.isfile(thumbnail_name):
@@ -706,22 +707,16 @@ def normalize_youtube_activityStream(preservation_directories=list):
                         text_block = f"{normalized_json['name']} {normalized_json['content']}"
                         normalized_json['actor'] = []
                         normalized_json['engagement'] = []
-                        normalized_json['engagement'].append({'type': 'Views', 'count': json_data['view_count']})
-                        normalized_json['engagement'].append({'type': 'followers', 'count': json_data['channel_follower_count']})
+                        if "view_count" in json_data.keys():
+                            normalized_json['engagement'].append({'type': 'Views', 'count': json_data['view_count']})
+                        if "channel_follower_count" in json_data.keys():
+                            normalized_json['engagement'].append({'type': 'Followers', 'count': json_data['channel_follower_count']})
                         if "comment_count" in json_data.keys():
-                            normalized_json['engagement'].append({'type': 'comments', 'count': json_data['comment_count']})
+                            normalized_json['engagement'].append({'type': 'Comments', 'count': json_data['comment_count']})
                         normalized_json['actor'].append({'type': "YouTube Account",
                                                 'id': json_data['uploader_id'],
                                                 'name': json_data['uploader'],
                                                 'url': json_data['channel_url']})
-                        if "categories" in json_data.keys():
-                            if json_data['categories'] != []:
-                                if "tags" not in normalized_json.keys():
-                                    normalized_json['tags'] = []
-                                for category in json_data['categories']:
-                                    normalized_json['tags'].append({'type': 'category',
-                                                                    'id': category,
-                                                                    'name': category})
                         if '"_type": "playlist"' in filedata:
                             playlist_directory[json_data['title']] = filename
                             normalized_json['name'] = f"Playlist: {normalized_json['name']}"
@@ -737,14 +732,15 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                         normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
                             normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
+                            normalized_json['engagement'].append({'type': "Likes", 'count': json_data['like_count']})
                             if "attachments" not in normalized_json.keys():
                                 normalized_json['attachments'] = []
                             mini_dict = {'type': "Video"}
                             mini_dict['mediaType'] = f"video/{json_data['ext']}"
-                            base_filename = filename[:-9]
+                            base_filename = filename[:-4]
                             if os.path.isfile(f"{base_filename}{json_data['ext']}"):
-                                mini_dict['url'] = f"{filename1[:-9]}{json_data['ext']}"
-                            if "url" not in normalized_json.keys():
+                                mini_dict['url'] = f"{base_filename.split('/')[-1]}{json_data['ext']}"
+                            if "url" not in mini_dict.keys():
                                 mini_dict['url'] = json_data['webpage_url']
                                 normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
                             if "release_timestamp" in json_data.keys():
@@ -767,23 +763,29 @@ def normalize_youtube_activityStream(preservation_directories=list):
                             else:
                                 mini_dict['duration'] = "Unspecified"
                             if "thumbnail" in json_data.keys():
-                                mini_dict['preview'] = {}
-                                my_thumbnail = json_data['thumbnail']
-                                for thumbnail in json_data['thumbnails']:
-                                    if my_thumbnail == thumbnail['url']:
-                                        my_thumbnail = thumbnail
-                                mini_dict['preview']['type'] = "Image"
-                                mini_dict['preview']['name'] = "Thumbnail"
-                                if "height" in my_thumbnail.keys():
-                                    mini_dict['preview']['height'] = my_thumbnail['height']
-                                if "width" in my_thumbnail.keys():
-                                    mini_dict['preview']['width'] = my_thumbnail['width']
-                                mini_dict['preview']['url'] = {}
-                                mini_dict['preview']['url']['href'] = my_thumbnail['url'].split("/")[-1]
-                                if len(my_thumbnail['url'].split('.')) > 1:
-                                    mini_dict['preview']['url']['mediaType'] = f"image/{my_thumbnail['url'].split('.')[-1]}"
-                                normalized_json['engagement'].append({'type': "Like", 'count': json_data['like_count']})
-                                normalized_json['attachments'].append(mini_dict)
+                                if os.path.isfile(f"{filename[:-5]}_thumbnail.jpg"):
+                                    mini_dict['preview'] = {}
+                                    my_thumbnail = json_data['thumbnail']
+                                    for thumbnail in json_data['thumbnails']:
+                                        if my_thumbnail == thumbnail['url']:
+                                            my_thumbnail = thumbnail
+                                    mini_dict['preview']['type'] = "Image"
+                                    mini_dict['preview']['name'] = "Thumbnail"
+                                    if "height" in my_thumbnail.keys():
+                                        mini_dict['preview']['height'] = my_thumbnail['height']
+                                    if "width" in my_thumbnail.keys():
+                                        mini_dict['preview']['width'] = my_thumbnail['width']
+                                    mini_dict['preview']['url'] = {}
+                                    mini_dict['preview']['url']['href'] = f"{filename1[:-5]}_thumbnail.jpg"
+                                    if len(my_thumbnail['url'].split('.')) > 1:
+                                        mini_dict['preview']['url']['mediaType'] = f"image/{mini_dict['preview']['url']['href'].split('.')[-1]}"
+                                    normalized_json['attachments'].append(mini_dict)
+                            if "thumbnails" in json_data.keys():
+                                root_thumbnail_name = f"{filename[:-5]}_thumbnail"
+                                for item in json_data['thumbnails']:
+                                    thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
+                                    if os.path.isfile(thumbnail_name):
+                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
                             # append some playlist data to playlist_items so it can be merged into that file
                             if "playlist" in json_data.keys():
                                 normalized_json['partOf'] = json_data['playlist']
@@ -791,13 +793,12 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                     playlist_item_listing[json_data['playlist']] = []
                                 playlist_item_listing[json_data['playlist']].append({'type': "Video",
                                                                                      "name": normalized_json['name'],
-                                                                                     "url": normalized_json['url'],
-                                                                                     'duration': normalized_json['duration']})
+                                                                                     "url": mini_dict['url'],
+                                                                                     'duration': mini_dict['duration']})
                             normalized_json['youtube:live_status'] = json_data['live_status']
                             normalized_json['youtube:is_live'] = json_data['is_live']
                             normalized_json['youtube:was_live'] = json_data['was_live']
                             normalized_json['youtube:playable_in_embed'] = json_data['playable_in_embed']
-                            normalized_json = normalization_tags(normalized_json, text_block, 'youtube')
                             # if subtitles not automatically generated, pull data for the subtitles that actually exist and make data an attachment
                             if json_data['subtitles'] != {}:
                                 for key in json_data['subtitles'].keys():
@@ -809,7 +810,16 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                             subtitle_dict['type'] = "subtitle"
                                             subtitle_dict['name'] = subtitle['name']
                                             subtitle_dict['url'] = f"{filename1[:-4]}{rooty}.{subtitle['ext']}"
-                                            normalized_json['attachment'].append(subtitle_dict)
+                                            normalized_json['attachments'].append(subtitle_dict)
+                        normalized_json = normalization_tags(normalized_json, text_block, 'youtube')
+                        if "categories" in json_data.keys():
+                            if json_data['categories'] != []:
+                                if "tags" not in normalized_json.keys():
+                                    normalized_json['tags'] = []
+                                for category in json_data['categories']:
+                                    normalized_json['tags'].append({'type': 'Category',
+                                                                    'id': category,
+                                                                    'name': category})
                     with open(filename, 'w') as w:
                         json.dump(normalized_json, w)
                     w.close()
