@@ -1026,7 +1026,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                                     "href": url['expanded_url'],
                                                                     'mediaType': 'text/html'})
                             if entity == "media":
-                                #TODO insert media handler here
+                                # insert media handler here
                         normalized_json = normalization_tags(normalized_json, content_text, "twitter")
 
                         with open(filename, 'wb') as w:
