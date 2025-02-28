@@ -488,6 +488,15 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
     filename_list = []
     for dirpath, dirnames, filenames in os.walk(target):
         for filename in filenames:
+            if filename.endswith("json"):
+                filename = os.path.join(dirpath, filename)
+                filename_list.append(filename)
+
+    for item in filename_list:
+        if filename.endswith(".info.json"):
+            os.rename(item, f"{item[:-9]}json")
+    for dirpath, dirnames, filenames in os.walk(target):
+        for filename in filenames:
             best_dir = dirpath.split("/")[-1].split("\\")[-1]
             for item in id_list2:
                 if item in best_dir:
@@ -501,7 +510,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                     filedata = r.read()
                     json_data = json.loads(filedata)
                     if "thumbnail" in json_data.keys():
-                        thumbnail_name = f"{filename[:-10]}_thumbnail.jpg"
+                        thumbnail_name = f"{filename[:-5]}_thumbnail.jpg"
                         if not os.path.isfile(thumbnail_name):
                             my_thumbnail = requests.get(json_data['thumbnail'], stream=True)
                             if my_thumbnail.status_code == 200:
@@ -510,7 +519,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                                         f.write(chunk)
                                 f.close()
                     elif "thumbnails" in json_data.keys():
-                        thumbnail_name = f"{filename[:-10]}_thumbnail"
+                        thumbnail_name = f"{filename[:-5]}_thumbnail"
                         counter = len(json_data['thumbnails'])
                         status = 0
                         if not os.path.isfile(thumbnail_name):
@@ -528,18 +537,6 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
                                             status = 200
                                 window['-OUTPUT-'].update(f"failed to get thumbnail for {filename}\n", append=True)
                                 status = 200
-
-
-                    '''harvested_flag = False
-                    for item in video_formats:
-                        video_file = f"{filename[:-9]}{item}"
-                        if os.path.isfile(video_file):
-                            harvested_flag = True
-                    if harvested_flag is False and '"_type": "video"' in filedata:
-                        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                            ydl.download(json_data['webpage_url'])'''
-    for item in filename_list:
-        os.rename(item, f"{item[:-9]}json")
 
     window['-OUTPUT-'].update(f"\nfinished youtube harvest step\n", append=True)
     upload_list = list(upload_list)
@@ -713,6 +710,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                             normalized_json['engagement'].append({'type': 'Followers', 'count': json_data['channel_follower_count']})
                         if "comment_count" in json_data.keys():
                             normalized_json['engagement'].append({'type': 'Comments', 'count': json_data['comment_count']})
+                        normalized_json['type'] = "Note"
                         normalized_json['actor'].append({'type': "YouTube Account",
                                                 'id': json_data['uploader_id'],
                                                 'name': json_data['uploader'],
@@ -947,6 +945,96 @@ def normalize_twitter(preservation_directories=list):
                     w.close()
                     window['-OUTPUT-'].update(f"normalized json for {filename}\n", append=True)
 
+def normalize_twitter_activitystream(preservation_directories=list):
+    window['-OUTPUT-'].update("getting count for thing to normalize for progress bar\n", append=True)
+    master_count = 0
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(preservation_directory):
+            for filename in filenames:
+                if filename.endswith("json"):
+                    master_count += 1
+    current_count = 0
+    #now iterate over the fileset
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(f"{preservation_directory}"):
+            for filename in filenames:
+                if filename.endswith("json"):
+                    filename1 = filename
+                    filename = os.path.join(dirpath, filename)
+                    window['-OUTPUT-'].update(f"Working on {filename}\n", append=True)
+                    print(filename)
+                    # reset/clear out anything lingering in the machine for last json being handled
+                    normalized_json = 0
+                    normalized_json = {}
+                    with open(filename, "r") as r:
+                        filedata = r.read()
+                        json_data = json.loads(filedata)
+                        normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams",
+                                                      {"twitter": 'https:///www.twitter.com'}]
+                        normalized_json['context'] = "Twitter"
+                        normalized_json['id'] = json_data['id_str']
+                        normalized_json['name'] = json_data['']
+                        normalized_json['content'] = json_data['full_text']
+                        normalized_json['type'] = "Note"
+                        normalized_json['actor'] = []
+                        normalized_json['published'] = datetime.datetime.strptime(json_data['created_at'], '%a %b %d %H:%M:%S %z %Y').strftime('%Y-%m-%dT%H:%M:%SZ')
+                        normalized_json['twitter:retweeted'] = json_data['retweeted']
+                        normalized_json['actor'].append({'type': 'twitter',
+                                                         'id': json_data['user']['id_str'],
+                                                         'name': json_data['user']['name'],
+                                                         'url': f"https://www.twitter.com/{json_data['user']['screen_name']}",
+                                                         'twitter:created_at': json_data['user']['create_at'],
+                                                         'location': json_data['user']['location'],
+                                                         'twitter:profile_image_url': json_data['user']['profile_image_url'],
+                                                         'twitter:profile_banner_url': json_data['user']['profile_banner_url']})
+                        normalized_json['engagement'] = []
+                        if "retweet_count" in json_data.keys():
+                            normalized_json['engagement'].append({"type": "Share", "count": json_data['retweet_count']})
+                        if "favorite_count" in json_data.keys():
+                            normalized_json['engagement'].append({'type': 'Favorite', 'count': json_data['favorite_count']})
+                        content_text = ""
+                        content_text = f"{content_text} {normalized_json['content']}"
+                        if "in_reply_to_status_id" is not None:
+                            normalized_json['inReplyTo'] = {'type': 'Note',
+                                                            'href': json_data['in_reply_to_status_id_str'],
+                                                            'Actor': [{'type': 'twitter',
+                                                                       'id': json_data['in_reply_to_user_id_str'],
+                                                                       'url': f"https://www.twitter.com/{json_data['in_reply_to_screen_name']}"}]}
+                        normalized_json['twitter:source'] = json_data['source']
+                        normalized_json['tags'] = []
+                        for entity in json_data['entities'].keys():
+                            current_entity = json_data[entity]
+                            if entity == "hashtags":
+                                for hashtag in current_entity:
+                                    normalized_json['tags'].append({'type': 'Hashtag',
+                                                                    'name': f"#{hashtag['text']}",
+                                                                    'id': f"https://www.twitter.com/hashtag/{hashtag['text']}"})
+                            if entity == "symbols":
+                                for symbol in current_entity:
+                                    normalized_json['tags'].append({'type': 'Symbol',
+                                                                    'name': symbol['text'],
+                                                                    'id': symbol['text']})
+                            if entity == "user_mentions":
+                                for mention in current_entity:
+                                    normalized_json['tags'].append({'type': "Mention",
+                                                                    'name': mention['name'],
+                                                                    'id': f"https//www.twitter.com/{mention['screen_name']}",
+                                                                    "twitter:id": mention['id_str']})
+                            if entity == 'urls':
+                                for url in current_entity:
+                                    normalized_json['tags'].append({'type': "Link",
+                                                                    "href": url['expanded_url'],
+                                                                    'mediaType': 'text/html'})
+                            if entity == "media":
+                                #TODO insert media handler here
+                        normalized_json = normalization_tags(normalized_json, content_text, "twitter")
+
+                        with open(filename, 'wb') as w:
+                            json.dump(normalized_json, w)
+                        w.close()
+                        current_count += 1
+                        window['-Progress'].update(f"finished normalizing twitter content\n", append=True)
+    print("something")
 # twitter correspondence handler
 def twitter_correspondence(source_folder=str, target_folder=str):
     direct_mesage_file = f"{source_folder}/data/direct-messages.js"
@@ -2538,3 +2626,4 @@ window.close()
 #TODO pass type of social media to handler for normalization
 #TODO pass type of social media and if normalization has occured to handler for wall
 #TODO make a spreadsheet output for summary data for the end-user
+#TODO fix issue with youtube harvest/normalization stripping too much of the filename
