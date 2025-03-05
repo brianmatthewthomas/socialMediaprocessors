@@ -994,13 +994,14 @@ def normalize_twitter_activitystream(preservation_directories=list):
                             normalized_json['engagement'].append({'type': 'Favorite', 'count': json_data['favorite_count']})
                         content_text = ""
                         content_text = f"{content_text} {normalized_json['content']}"
-                        if "in_reply_to_status_id" is not None:
+                        if "in_reply_to_status_id" != None:
                             normalized_json['inReplyTo'] = {'type': 'Note',
                                                             'href': json_data['in_reply_to_status_id_str'],
                                                             'Actor': [{'type': 'twitter',
                                                                        'id': json_data['in_reply_to_user_id_str'],
                                                                        'url': f"https://www.twitter.com/{json_data['in_reply_to_screen_name']}"}]}
-                        normalized_json['twitter:source'] = json_data['source']
+                        if "source" in json_data.keys():
+                            normalized_json['origin'] = {'type': "Application", "name": json_data['source']}
                         normalized_json['tags'] = []
                         for entity in json_data['entities'].keys():
                             current_entity = json_data[entity]
@@ -1027,6 +1028,91 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                                     'mediaType': 'text/html'})
                             if entity == "media":
                                 # insert media handler here
+                                media_set = json_data['extended_entities']['media']
+                                if "Attachments" not in normalized_json.keys():
+                                    normalized_json['Attachments'] = []
+                                for current_media in media_set:
+                                    # clear prior mini_dict in case something is lingering
+                                    mini_dict = ""
+                                    mini_dict = {}
+                                    if current_media['type'] == "photo":
+                                        mini_dict['type'] = "Image"
+                                        mini_dict['uri'] = current_media['media_url'].split("/")[-1]
+                                        mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
+                                        mini_dict['id'] = current_media['id_str']
+                                        normalized_json['Attachments'].append(mini_dict)
+                                    if current_media['type'] == "video":
+                                        preview = ""
+                                        preview = {
+                                            'type': "Image",
+                                            'name': "Thumbnail",
+                                            'url': {
+                                                'href': current_media['media_url'].split('/')[-1],
+                                                'mediaType': f'image/jpg'
+                                            }
+                                        }
+                                        duration = str(current_media['video_info']['duration_millis'])
+                                        hours = "00"
+                                        minutes = "00"
+                                        seconds = duration[:-3]
+                                        miliseconds = duration[-3:]
+                                        if int(seconds) >= 60:
+                                            minutes = str(int(seconds/60)).split('.')[0]
+                                            seconds = str(int(seconds)-(int(minutes)*60))
+                                            if int(minutes) >= 60:
+                                                hours = str(int(minutes/60)).split('.')[0]
+                                                minutes = str(int(minutes)-(int(hours)*60))
+                                        while len(seconds) < 2:
+                                            seconds = f"0{seconds}"
+                                        while len(minutes) < 2:
+                                            minutes = f"0{minutes}"
+                                        duration = f"{hours}:{minutes}:{seconds}.{miliseconds}"
+                                        if hours == "00":
+                                            duration = duration.replace("00:", "")
+                                        for variant in current_media['video_info']['variants']:
+                                            mini_dict = ""
+                                            mini_dict = {}
+                                            if variant['content_type'].startswith("video"):
+                                                mini_dict['type'] = "Video"
+                                                mini_dict['id'] = current_media['id_str']
+                                                mini_dict['mediaType'] = variant['content_type']
+                                                mini_dict['url'] = variant['url'].split('/')[-1]
+                                                if "bitrate" in variant.keys():
+                                                    mini_dict['twitter:bitrate'] = variant['bitrate']
+                                                if "aspect_ratio" in current_media.keys():
+                                                    mini_dict['twitter:width'] = current_media['aspect_ratio'][0]
+                                                    mini_dict['twitter:height'] = current_media['aspect_ratio'][1]
+                                                mini_dict['preview'] = preview
+                                                try:
+                                                    mini_dict['width'] = int(variant['url'].split('/')[-2].split('x')[0])
+                                                    mini_dict['height'] = int(variant['url'].split('/')[-2].split('x')[-1])
+                                                except:
+                                                    continue
+                                            else:
+                                                mini_dict['type'] = variant['content_type'].split('/')[0].capitalize()
+                                                mini_dict['id'] = current_media['id_str']
+                                                mini_dict['mediaType'] = variant['content_type']
+                                                mini_dict['url'] = variant['url'].split('/')[-1]
+                                            normalized_json['Attachments'].append({mini_dict})
+                                    if current_media['type'] == "animated_gif":
+                                        preview = ""
+                                        preview = {
+                                            'type': "Image",
+                                            'name': "Thumbnail",
+                                            'url': {
+                                                'href': current_media['media_url'].split('/')[-1],
+                                                'mediaType': f'image/jpg'
+                                            }
+                                        }
+                                        mini_dict['twitter:type'] = current_media['type']
+                                        mini_dict['type'] = "Video"
+                                        mini_dict['id'] = current_media['id_str']
+                                        mini_dict['media_type'] = current_media['variants'][0]['content_type']
+                                        mini_dict['url'] = current_media['variants'][0]['url'].split("/")[-1]
+                                        if "bitrate" in current_media['variants'][0]:
+                                            mini_dict['twitter:bitrate'] = current_media['variants'][0]['bitrate']
+                                        mini_dict['preview'] = preview
+                                        normalized_json['Attachments'].append(mini_dict)
                         normalized_json = normalization_tags(normalized_json, content_text, "twitter")
 
                         with open(filename, 'wb') as w:
@@ -1034,8 +1120,8 @@ def normalize_twitter_activitystream(preservation_directories=list):
                         w.close()
                         current_count += 1
                         window['-Progress'].update(f"finished normalizing twitter content\n", append=True)
-    print("something")
-# twitter correspondence handler
+                        print("something")
+                                    # twitter correspondence handler
 def twitter_correspondence(source_folder=str, target_folder=str):
     direct_mesage_file = f"{source_folder}/data/direct-messages.js"
     with open(direct_mesage_file, "r") as r:
