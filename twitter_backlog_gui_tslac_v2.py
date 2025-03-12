@@ -402,7 +402,7 @@ def create_preservation(target_folder=str):
                         preservation_directories.add(normalization_directory)
                         current_count += 1
                         window['-Progress-'].update_bar(current_count, master_count)
-    window['-OUTPUT-'].update(f"preservation/normalization foldering completed, moving to next steps")
+    window['-OUTPUT-'].update(f"preservation/normalization foldering completed, moving to next steps", append=True)
     preservation_directories = list(preservation_directories)
     preservation_directories.sort()
     return preservation_directories
@@ -973,7 +973,6 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                       {"twitter": 'https:///www.twitter.com'}]
                         normalized_json['context'] = "Twitter"
                         normalized_json['id'] = json_data['id_str']
-                        normalized_json['name'] = json_data['']
                         normalized_json['content'] = json_data['full_text']
                         normalized_json['type'] = "Note"
                         normalized_json['actor'] = []
@@ -983,7 +982,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                          'id': json_data['user']['id_str'],
                                                          'name': json_data['user']['name'],
                                                          'url': f"https://www.twitter.com/{json_data['user']['screen_name']}",
-                                                         'twitter:created_at': json_data['user']['create_at'],
+                                                         'twitter:created_at': json_data['user']['created_at'],
                                                          'location': json_data['user']['location'],
                                                          'twitter:profile_image_url': json_data['user']['profile_image_url'],
                                                          'twitter:profile_banner_url': json_data['user']['profile_banner_url']})
@@ -994,89 +993,101 @@ def normalize_twitter_activitystream(preservation_directories=list):
                             normalized_json['engagement'].append({'type': 'Favorite', 'count': json_data['favorite_count']})
                         content_text = ""
                         content_text = f"{content_text} {normalized_json['content']}"
-                        if "in_reply_to_status_id" != None:
+                        if json_data["in_reply_to_status_id"] is not None:
                             normalized_json['inReplyTo'] = {'type': 'Note',
                                                             'href': json_data['in_reply_to_status_id_str'],
                                                             'Actor': [{'type': 'twitter',
                                                                        'id': json_data['in_reply_to_user_id_str'],
+                                                                       'name': json_data['in_reply_to_screen_name'],
                                                                        'url': f"https://www.twitter.com/{json_data['in_reply_to_screen_name']}"}]}
                         if "source" in json_data.keys():
                             normalized_json['origin'] = {'type': "Application", "name": json_data['source']}
+                        if json_data['geo'] is not None:
+                            normalized_json['location'] = {"type": json_data['geo']['type']}
+                            if "coordinates" in json_data['geo'].keys():
+                                normalized_json['location']['latitude'] = json_data['geo']['coordinates'][1]
+                                normalized_json['location']['longitude'] = json_data['geo']['coordinates'][0]
+                        if json_data['place'] is not None:
+                            if "location" not in normalized_json.keys():
+                                normalized_json['location'] = dict()
+                            normalized_json['location']['type'] = json_data['place']['place_type']
+                            normalized_json['location']['name'] = json_data['place']['full_name']
+                            normalized_json['location']['twitter:country_code'] = json_data['place']['country_code']
+                            normalized_json['location']['twitter:id'] = json_data['place']['id']
                         normalized_json['tags'] = []
-                        for entity in json_data['entities'].keys():
-                            current_entity = json_data[entity]
-                            if entity == "hashtags":
-                                for hashtag in current_entity:
-                                    normalized_json['tags'].append({'type': 'Hashtag',
-                                                                    'name': f"#{hashtag['text']}",
-                                                                    'id': f"https://www.twitter.com/hashtag/{hashtag['text']}"})
-                            if entity == "symbols":
-                                for symbol in current_entity:
-                                    normalized_json['tags'].append({'type': 'Symbol',
-                                                                    'name': symbol['text'],
-                                                                    'id': symbol['text']})
-                            if entity == "user_mentions":
-                                for mention in current_entity:
-                                    normalized_json['tags'].append({'type': "Mention",
-                                                                    'name': mention['name'],
-                                                                    'id': f"https//www.twitter.com/{mention['screen_name']}",
-                                                                    "twitter:id": mention['id_str']})
-                            if entity == 'urls':
-                                for url in current_entity:
-                                    normalized_json['tags'].append({'type': "Link",
-                                                                    "href": url['expanded_url'],
-                                                                    'mediaType': 'text/html'})
-                            if entity == "media":
-                                # insert media handler here
-                                media_set = json_data['extended_entities']['media']
-                                if "Attachments" not in normalized_json.keys():
-                                    normalized_json['Attachments'] = []
-                                for current_media in media_set:
-                                    # clear prior mini_dict in case something is lingering
-                                    mini_dict = ""
-                                    mini_dict = {}
-                                    if current_media['type'] == "photo":
-                                        mini_dict['type'] = "Image"
-                                        mini_dict['uri'] = current_media['media_url'].split("/")[-1]
-                                        mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
-                                        mini_dict['id'] = current_media['id_str']
-                                        normalized_json['Attachments'].append(mini_dict)
-                                    if current_media['type'] == "video":
-                                        preview = ""
-                                        preview = {
-                                            'type': "Image",
-                                            'name': "Thumbnail",
-                                            'url': {
-                                                'href': current_media['media_url'].split('/')[-1],
-                                                'mediaType': f'image/jpg'
-                                            }
+                        if json_data['entities']['hashtags'] != []:
+                            for hashtag in json_data['entities']['hashtags']:
+                                normalized_json['tags'].append({'type': 'Hashtag',
+                                                                'name': f"#{hashtag['text']}",
+                                                                'id': f"https://www.twitter.com/hashtag/{hashtag['text']}"})
+                        if json_data['entities']['symbols'] != []:
+                            for symbol in json_data['entities']['symbols']:
+                                normalized_json['tags'].append({'type': 'Symbol',
+                                                                'name': symbol['text'],
+                                                                'id': symbol['text']})
+                        if json_data['entities']['user_mentions'] != []:
+                            for mention in json_data['entities']['user_mentions']:
+                                normalized_json['tags'].append({'type': "Mention",
+                                                                'name': mention['name'],
+                                                                'id': f"https//www.twitter.com/{mention['screen_name']}",
+                                                                "twitter:id": mention['id_str']})
+                        if json_data['entities']['urls'] != []:
+                            for url in json_data['entities']['urls']:
+                                normalized_json['tags'].append({'type': "Link",
+                                                                "href": url['expanded_url'],
+                                                                'mediaType': 'text/html'})
+                        if "media" in json_data['entities'].keys():
+                            # insert media handler here
+                            media_set = json_data['extended_entities']['media']
+                            if "Attachments" not in normalized_json.keys():
+                                normalized_json['Attachments'] = []
+                            for current_media in media_set:
+                                # clear prior mini_dict in case something is lingering
+                                mini_dict = ""
+                                mini_dict = {}
+                                if current_media['type'] == "photo":
+                                    mini_dict['type'] = "Image"
+                                    mini_dict['uri'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
+                                    mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
+                                    mini_dict['id'] = current_media['id_str']
+                                    normalized_json['Attachments'].append(mini_dict)
+                                if current_media['type'] == "video":
+                                    preview = ""
+                                    preview = {
+                                        'type': "Image",
+                                        'name': "Thumbnail",
+                                        'url': {
+                                            'href': current_media['media_url'].split('/')[-1],
+                                            'mediaType': f'image/jpg'
                                         }
-                                        duration = str(current_media['video_info']['duration_millis'])
-                                        hours = "00"
-                                        minutes = "00"
-                                        seconds = duration[:-3]
-                                        miliseconds = duration[-3:]
-                                        if int(seconds) >= 60:
-                                            minutes = str(int(seconds/60)).split('.')[0]
-                                            seconds = str(int(seconds)-(int(minutes)*60))
-                                            if int(minutes) >= 60:
-                                                hours = str(int(minutes/60)).split('.')[0]
-                                                minutes = str(int(minutes)-(int(hours)*60))
-                                        while len(seconds) < 2:
-                                            seconds = f"0{seconds}"
-                                        while len(minutes) < 2:
-                                            minutes = f"0{minutes}"
-                                        duration = f"{hours}:{minutes}:{seconds}.{miliseconds}"
-                                        if hours == "00":
-                                            duration = duration.replace("00:", "")
-                                        for variant in current_media['video_info']['variants']:
-                                            mini_dict = ""
-                                            mini_dict = {}
+                                    }
+                                    duration = str(current_media['video_info']['duration_millis'])
+                                    hours = "00"
+                                    minutes = "00"
+                                    seconds = duration[:-3]
+                                    miliseconds = duration[-3:]
+                                    if int(seconds) >= 60:
+                                        minutes = str(int(seconds)/60).split('.')[0]
+                                        seconds = str(int(seconds)-(int(minutes)*60))
+                                        if int(minutes) >= 60:
+                                            hours = str(int(minutes)/60).split('.')[0]
+                                            minutes = str(int(minutes)-(int(hours)*60))
+                                    while len(seconds) < 2:
+                                        seconds = f"0{seconds}"
+                                    while len(minutes) < 2:
+                                        minutes = f"0{minutes}"
+                                    duration = f"{hours}:{minutes}:{seconds}.{miliseconds}"
+                                    if hours == "00":
+                                        duration = duration.replace("00:", "")
+                                    for variant in current_media['video_info']['variants']:
+                                        mini_dict = ""
+                                        mini_dict = {}
+                                        if os.path.isfile(f"{dirpath}/{json_data['id_str']}-{variant['url'].split('/')[-1]}"):
                                             if variant['content_type'].startswith("video"):
                                                 mini_dict['type'] = "Video"
                                                 mini_dict['id'] = current_media['id_str']
                                                 mini_dict['mediaType'] = variant['content_type']
-                                                mini_dict['url'] = variant['url'].split('/')[-1]
+                                                mini_dict['url'] = f"{json_data['id_str']}-{variant['url'].split('/')[-1]}"
                                                 if "bitrate" in variant.keys():
                                                     mini_dict['twitter:bitrate'] = variant['bitrate']
                                                 if "aspect_ratio" in current_media.keys():
@@ -1093,34 +1104,37 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                 mini_dict['id'] = current_media['id_str']
                                                 mini_dict['mediaType'] = variant['content_type']
                                                 mini_dict['url'] = variant['url'].split('/')[-1]
-                                            normalized_json['Attachments'].append({mini_dict})
-                                    if current_media['type'] == "animated_gif":
-                                        preview = ""
-                                        preview = {
-                                            'type': "Image",
-                                            'name': "Thumbnail",
-                                            'url': {
-                                                'href': current_media['media_url'].split('/')[-1],
-                                                'mediaType': f'image/jpg'
-                                            }
+                                        if mini_dict != {}:
+                                            normalized_json['Attachments'].append(mini_dict)
+                                if current_media['type'] == "animated_gif":
+                                    preview = ""
+                                    preview = {
+                                        'type': "Image",
+                                        'name': "Thumbnail",
+                                        'url': {
+                                            'href': current_media['media_url'].split('/')[-1],
+                                            'mediaType': f'image/jpg'
                                         }
-                                        mini_dict['twitter:type'] = current_media['type']
-                                        mini_dict['type'] = "Video"
-                                        mini_dict['id'] = current_media['id_str']
-                                        mini_dict['media_type'] = current_media['variants'][0]['content_type']
-                                        mini_dict['url'] = current_media['variants'][0]['url'].split("/")[-1]
-                                        if "bitrate" in current_media['variants'][0]:
-                                            mini_dict['twitter:bitrate'] = current_media['variants'][0]['bitrate']
-                                        mini_dict['preview'] = preview
-                                        normalized_json['Attachments'].append(mini_dict)
+                                    }
+                                    mini_dict['twitter:type'] = current_media['type']
+                                    mini_dict['type'] = "Video"
+                                    mini_dict['id'] = current_media['id_str']
+                                    mini_dict['media_type'] = current_media['video_info']['variants'][0]['content_type']
+                                    mini_dict['url'] = current_media['video_info']['variants'][0]['url'].split("/")[-1]
+                                    if "bitrate" in current_media['video_info']['variants'][0].keys():
+                                        mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
+                                    mini_dict['preview'] = preview
+                                    normalized_json['Attachments'].append(mini_dict)
                         normalized_json = normalization_tags(normalized_json, content_text, "twitter")
 
-                        with open(filename, 'wb') as w:
+                        with open(filename, 'w') as w:
                             json.dump(normalized_json, w)
                         w.close()
                         current_count += 1
-                        window['-Progress'].update(f"finished normalizing twitter content\n", append=True)
-                        print("something")
+                        window['-OUTPUT-'].update(f"processed {filename}\n", append=True)
+                        window['-Progress-'].update_bar(current_count, master_count)
+    window['-OUTPUT-'].update(f"finished normalizing twitter content\n", append=True)
+    print("finished twitter normalization")
                                     # twitter correspondence handler
 def twitter_correspondence(source_folder=str, target_folder=str):
     direct_mesage_file = f"{source_folder}/data/direct-messages.js"
@@ -1153,6 +1167,7 @@ def tweet_media_handler(url, filename, profile_media_directory):
                 my_filename = os.path.join(dirpath, my_filename)
                 shutil.copy2(my_filename, filename)
                 shutil.copystat(my_filename, filename)
+                window['-OUTPUT-'].update(f"pulled {filename} from {my_filename}\n", append=True)
     # do file exist check and if profile media wasn't found for some reason, try to harvest it from the website instead
     if not os.path.isfile(filename):
         tweet_media = requests.get(url, stream=True)
@@ -1162,6 +1177,7 @@ def tweet_media_handler(url, filename, profile_media_directory):
                 for chunk in tweet_media.iter_content(1024):
                     f.write(chunk)
             f.close()
+            window['-OUTPUT-'].update(f"pulled {filename} from twitter servers as not in folder\n", append=True)
 
 # workhorse to tweets
 def tweet_handler(source_folder, target_folder):
@@ -1230,7 +1246,7 @@ def tweet_handler(source_folder, target_folder):
             window['-Progress-'].update_bar(counter, total)
             # denesting the tweet now
             tweet = tweet['tweet']
-            tweet_date = datetime.datetime.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y').strftime('%Y-%m-$d')
+            tweet_date = datetime.datetime.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y').strftime('%Y-%m-%d')
             if "+" not in tweet['created_at']:
                 tweet['created_at'] = f"{tweet['created_at'][:-4]} +0000 {tweet['created_at'][-4:]}"
             if str(tweet['id']) not in id_list:
@@ -1304,39 +1320,43 @@ def tweet_handler(source_folder, target_folder):
             # add tweet to list of tweets processed this go-around
             id_list2.append(str(tweet['id_str']))
             # get banner image for backlog depository to ensure everything is there
-            profile_image = tweet['user']['profile_image_url_https'].split("/")[-1]
+            profile_image = f"{tweet['user']['id_str']}-{tweet['user']['profile_image_url_https'].split('/')[-1]}"
             profile_image_filename = f"{baseline}profile_image/{profile_image}"
             profile_image_url = tweet['user']['profile_image_url_https']
             user_image_set = []
             if not os.path.isfile(profile_image_filename):
-                tweet_media_handler(profile_image_url, profile_image_filename, f"{valuables['source_dir']}profile_media")
-            profile_banner_filename = f"{baseline}profile_banner/{tweet['user']['profile_banner_url'].split('/')[-1]}"
+                tweet_media_handler(profile_image_url, profile_image_filename, f"{valuables['source_dir']}/profile_media")
+            profile_banner_filename = f"{baseline}profile_banner/{tweet['user']['id_str']}-{tweet['user']['profile_banner_url'].split('/')[-1]}.jpg"
             profile_banner_url = tweet['user']['profile_image_url_https']
             if not os.path.isfile(profile_banner_filename):
-                tweet_media_handler(profile_banner_url, profile_banner_filename, f"{valuables['source_dir']}profile_media")
+                tweet_media_handler(profile_banner_url, profile_banner_filename, f"{valuables['source_dir']}/profile_media")
             # download the media files
             images = []
             if 'extended_entities' in tweet and tweet['extended_entities'] is not None and 'media' in tweet['extended_entities']:
                 for media in tweet['extended_entities']['media']:
                     id = media['id_str']
                     # handle video first because of the structure
-                    if "video_info" in media:
+                    if "video_info" in media.keys():
                         bitrate = 0
                         # set variable to download only the largest video copy and overwrite anything downloaded up to then
                         for v in media['video_info']['variants']:
                             if 'bitrate' in v:
                                 if int(v['bitrate']) > bitrate:
+                                    bitrate = int(v['bitrate'])
+                        for v in media['video_info']['variants']:
+                            if 'bitrate' in v.keys():
+                                if int(v['bitrate']) == bitrate:
                                     media_filename = v['url'].split('.')[-1]
                                     media_filename = media_filename.split("?")[0]
-                                    media_filename = f"{filepath1}{id}.{media_filename}"
-                                    tweet_media_handler(v['url'], media_filename, f"{valuables['source_dir']}tweet_media")
+                                    media_filename = f"{filepath1}{tweet['id_str']}-{v['url'].split('/')[-1].split('?')[0]}"
+                                    tweet_media_handler(v['url'], media_filename, f"{valuables['source_dir']}/tweet_media")
                                     bitrate = int(v['bitrate'])
                         # save thumbnail image with _thumb at the end to be clear what it is
-                        media_filename = f"{filepath1}{media['id_str']}_thumb.{media['media_url'].split('.')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
+                        media_filename = f"{filepath1}{media['media_url'].split('/')[-1]}"
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
                     else:
-                        media_filename = f"{filepath1}{media['id_str']}.{media['media_url'].split('.')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
+                        media_filename = f"{filepath1}{tweet['id_str']}-{media['media_url'].split('/')[-1].split('.')[0]}.{media['media_url'].split('.')[-1]}"
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
                     # add thumbnail or downloaded image to a list so it doesn't get done twice
                     images.append(id)
             # start looking at the other location of media references in the json
@@ -1346,7 +1366,8 @@ def tweet_handler(source_folder, target_folder):
                     if media['id_str'] not in images:
                         if media['type'] == "photo":
                             media_filename = f"{filepath1}{media['id_str']}.{media['media_url'].split('.')[-1]}"
-                            tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}tweet_media")
+                            window['-OUTPUT-'].update(f"{valuables['source_dir']}/tweet_media\n", append=True)
+                            tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
     with open(f"{baseline}log_tweetIDs.txt", "a") as f:
         for item in id_list2:
             f.write(f"{item}\n")
@@ -2247,14 +2268,15 @@ while True:
                 extract_social_archive(target_file, source_folder)
                 window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
-                upload_list = tweet_handler(source_folder, target_folder)
+                my_source = f"{source_folder}/{target_file.split('/')[-1][:-4]}"
+                upload_list = tweet_handler(my_source, target_folder)
                 if values['-GET_correspondence-'] is True:
                     twitter_correspondence(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
                     # send list of folders to be normalized to normalization handler
-                    normalize_twitter(preservation_directories)
+                    normalize_twitter_activitystream(preservation_directories)
                     if values['-METADATA-'] is True:
                         window['-OUTPUT-'].update(f"starting metadata generation\n", append=True)
                         make_metadata2(preservation_directories, "Twitter", collectionName, metadata_creator)
