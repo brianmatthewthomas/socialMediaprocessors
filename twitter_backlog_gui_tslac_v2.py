@@ -506,7 +506,7 @@ def youtube_handler(channel_name=str, options_set=list, startdate=str, enddate=s
             if filename.endswith(".json"):
                 filename = os.path.join(dirpath, filename)
                 filename_list.append(filename)
-                with open(filename, "r") as r:
+                with open(filename, "r", encoding='utf-8') as r:
                     filedata = r.read()
                     json_data = json.loads(filedata)
                     if "thumbnail" in json_data.keys():
@@ -1233,7 +1233,7 @@ def tweet_handler(source_folder, target_folder):
         user_data['profile_image_url_https'] = user['profile']['avatarMediaUrl']
         user_data['profile_banner_url'] = user['profile']['headerMediaUrl']
     window['-OUTPUT-'].update("profile data loaded\n", append=True)
-    with open(my_precious, "r") as backlog:
+    with open(my_precious, "r", encoding="utf-8") as backlog:
         json_data = backlog.read()
         if "window.YTD.tweet.part0 = " in json_data:
             json_data = json_data.replace("window.YTD.tweet.part0 = ", "")
@@ -1774,6 +1774,12 @@ def facebook_handler(source_folder=str, target_folder=str):
             print(post_id)
             if post_id not in id_list:
                 post['post_id'] = post_id
+                counter = 0
+                while post_id in id_list2:
+                    if post_id.endswith(f"-{str(counter)}"):
+                        post_id = post_id[:-2]
+                    counter += 1
+                    post_id = f"{post_id}-{str(counter)}"
                 post['user'] = user_data
                 post['post_type'] = "facebook_event"
                 filepath = f"{baseline}/backlog/events/{post_id[:4]}/{post_id}/"
@@ -1813,6 +1819,12 @@ def facebook_handler(source_folder=str, target_folder=str):
             timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
             post_id = f"{str(timestamp_translated)[:10]}_{str(facebook['name'])}"
             if post_id not in id_list:
+                counter = 0
+                while post_id in id_list2:
+                    if post_id.endswith(f"-{str(counter)}"):
+                        post_id = post_id[:-2]
+                    counter += 1
+                    post_id = f"{post_id}-{str(counter)}"
                 facebook['post_id'] = post_id
                 facebook['user'] = user_data
                 facebook['post_type'] = "facebook_album"
@@ -1870,6 +1882,12 @@ def facebook_handler(source_folder=str, target_folder=str):
                         timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
                         post_id = f"{str(timestamp_translated)[:10]}_{str(timestamp)}"
                         if post_id not in id_list:
+                            counter = 0
+                            while post_id in id_list2:
+                                if post_id.endswith(f"-{str(counter)}"):
+                                    post_id = post_id[:-2]
+                                counter += 1
+                                post_id = f"{post_id}-{str(counter)}"
                             post['post_id'] = post_id
                             post['user'] = user_data
                             post['post_type'] = "facebook_otherPhotos"
@@ -1904,6 +1922,12 @@ def facebook_handler(source_folder=str, target_folder=str):
                         timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
                         post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
                         if post_id not in id_list:
+                            counter = 0
+                            while post_id in id_list2:
+                                if post_id.endswith(f"-{str(counter)}"):
+                                    post_id = post_id[:-2]
+                                counter += 1
+                                post_id = f"{post_id}-{str(counter)}"
                             post['post_id'] = post_id
                             post['user'] = user_data
                             post['post_type'] = "facebook_video"
@@ -1937,6 +1961,12 @@ def facebook_handler(source_folder=str, target_folder=str):
                     timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
                     post_id = f"{str(timestamp_translated[:10])}_{str(timestamp)}"
                     if post_id not in id_list:
+                        counter = 0
+                        while post_id in id_list2:
+                            if post_id.endswith(f"-{str(counter)}"):
+                                post_id = post_id[:-2]
+                            counter += 1
+                            post_id = f"{post_id}-{str(counter)}"
                         post['post_id'] = post_id
                         post['user'] = user_data
                         post['post_type'] = "facebook_post"
