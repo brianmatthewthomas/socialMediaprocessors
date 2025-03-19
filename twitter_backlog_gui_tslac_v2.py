@@ -81,7 +81,7 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                     metadata_file = filename.replace(".json", ".metadata")
                     metadata_file = os.path.join(dirpath, metadata_file)
                     json_file = os.path.join(dirpath, filename)
-                    j = open(json_file, "r")
+                    j = open(json_file, "r", encoding='utf-8')
                     post = json.loads(j.read())
                     metadata = Element('dcterms:dcterms',
                                        {'xmlns': 'http://dublincore.org/documents/dcmi-terms/',
@@ -90,15 +90,32 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                                         'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
                                         'xmlns:tslac': 'https://www.tsl.texas.gov/'})
                     title = SubElement(metadata, 'dcterms:title')
-                    title.text = f"{filename.split('_')[0]}: {post['platform']} post id {post['post_id']}"
+                    # fine-tune the naming convention
+                    platform = post['context']
+                    post_type = post['type']
+                    if post_type == "Collection":
+                        if platform == "YouTube":
+                            post_type = "Playlist"
+                        if platform == "Facebook":
+                            post_type = "Album"
+                    post_type = post_type.replace("Note", "Post")
+                    date = ""
+                    opts = ['published', 'updated']
+                    for item in opts:
+                        if item in post.keys():
+                            date = post[item][:10]
+                    if date == "":
+                        date = "Undated"
+                    title.text = f"{date} {platform} {post_type}: {post_type} id {post['id']}"
+                    # title.text = f"{filename.split('_')[0]}: {post['platform']} post id {post['post_id']}"
                     description = SubElement(metadata, 'dcterms:description.abstract')
-                    description.text = f"{post['platform']} post text: {post['content_text']}"
+                    description.text = f"{platform} {post_type} text: {post['content']}"
+                    # description.text = f"{post['platform']} post text: {post['content_text']}"
                     collectionName = SubElement(metadata, 'dcterms:relation.isPartOf')
                     collectionName.text = collection_name
                     preferredCitation = SubElement(metadata, 'dcterms:identifier.bibliographicCitation')
-                    my_preferredCitation = (f"{title.text}, @{post['user']['userid']}, {post['platform']}, {collection_name}."
-                                              f" Archives and Information Services Division, Texas State Library and"
-                                              f" Archives Commission.")
+                    my_preferredCitation = (f"{title.text}, account {post['actor'][0]['name']}, {platform}, {collection_name}. Archives and Information Services Division, Texas State Library and Archives Commission")
+                    # my_preferredCitation = (f"{title.text}, @{post['user']['userid']}, {post['platform']}, {collection_name}. Archives and Information Services Division, Texas State Library and Archives Commission.")
                     my_preferredCitation = my_preferredCitation.replace("@@", "@")
                     preferredCitation.text = my_preferredCitation
                     SubElement(metadata, 'dcterms:type').text = "Text"
@@ -106,18 +123,24 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                     if agency != "":
                         creator.text = agency
                     else:
-                        creator.text = post['user']['username']
+                        creator.text = post['actor'][0]['name']
                     date_created = SubElement(metadata, 'dcterms:date.created')
-                    date_created.text = filename.split("_")[0]
+                    date_created.text = date
                     SubElement(metadata, 'dcterms:subject').text = 'Social media'
                     SubElement(metadata, 'dcterms:subject').text = social_type
-                    SubElement(metadata, 'tslac:socialmedia.platform').text = post['platform']
-                    SubElement(metadata, 'tslac:socialmedia.username').text = post['user']['username']
-                    SubElement(metadata, 'tslac:socialmedia.identifier').text = post['post_id']
-                    hooks = post['hooks'].keys()
-                    for hook in hooks:
-                        for hooky in post['hooks'][hook]:
-                            SubElement(metadata, f"dcterms:{hook}").text = hooky
+                    SubElement(metadata, 'tslac:socialmedia.platform').text = platform
+                    SubElement(metadata, 'tslac:socialmedia.username').text = post['actor'][0]['name']
+                    SubElement(metadata, 'tslac:socialmedia.identifier').text = post['id']
+                    if "tags" in post.keys():
+                        hooks = post['tags']
+                        for hook in hooks:
+                            hooky_text = ""
+                            if "name" in hook.keys():
+                                hooky_text = hook['name']
+                            if "href" in hook.keys():
+                                hooky_text = hook['href']
+                            if hooky_text != "":
+                                hooky = SubElement(metadata, f"tslac:socialMedia.{hook['type'].lower()}").text = hooky_text
                     writer = open(metadata_file, 'wt', encoding='utf-8')
                     writer.write(prettify(metadata))
                     window['-OUTPUT-'].update(f"generated metadata for {filename}\n", append=True)
@@ -132,7 +155,7 @@ def create_wall(target_folder=str):
     <html>
     <head>
       <meta charset="utf-8">
-      <title>twarc-based wall</title>
+      <title>Wall originally based on the twarc concept but has been rewritten</title>
       <style>
         body {
           font-family: Arial, Helvetica, sans-serif;
@@ -213,7 +236,7 @@ def create_wall(target_folder=str):
     <footer id="page">
     <hr>
     <br>
-    Adapted from code for wall generation at <a href="https://github.com/DocNow/twarc">twarc</a>.
+    Originally adapted from code for wall generation at <a href="https://github.com/DocNow/twarc">twarc</a>.
     <br>
     <br>
     </footer>
@@ -234,47 +257,63 @@ def create_wall(target_folder=str):
                     year_list.add(current_year)
                     year = current_year
                 filename = os.path.join(dirpath, filename)
-                j = open(filename, "r")
+                j = open(filename, "r", encoding='utf-8')
                 post = json.loads(j.read())
-                post_dict = {'created_at': post['timestamp'],
-                             'name': post['user']['username'],
-                             'username': post['user']['username'],
-                             'user_url': f"{post['platform']}: {post['user']['user_id']}",
-                             "text": post['content_text'],
-                             "url": f"{post['platform']}: {post['user']['user_id']}, post id {post['post_id']}"}
-                current_avatar = f"{avatar}{post['user']['profile_image_url'].split('/')[-1]}"
+                platform = post['context']
+                post_type = post['type']
+                if post_type == "Collection":
+                    if platform == "YouTube":
+                        post_type = "Playlist"
+                    if platform == "Facebook":
+                        post_type = "Album"
+                post_type = post_type.replace("Note", "Post")
+                date = ""
+                opts = ['published', 'updated']
+                for item in opts:
+                    if item in post.keys():
+                        date = post[item][:10]
+                if date == "":
+                    date = "Undated"
+                post_dict = {'created_at': date,
+                             'name': post['actor'][0]['name'],
+                             'username': post['actor'][0]['id'],
+                             'user_url': f"{platform}: {post['actor'][0]['url']}",
+                             "text": post['content'],
+                             "url": f"{platform}: {post['actor'][0]['name']}, {post_type} id {post['id']}"}
+                # current_avatar = f"{avatar}{post['user']['profile_image_url'].split('/')[-1]}"
+                engagement_text = ""
+                if "engagement" in post.keys():
+                    for item in post['engagement']:
+                        engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
                 media_string = ""
-                if "media" in post:
-                    for x in post['media']:
-                        if x['media_type'] == "image":
-                            media_file = os.path.join(dirpath, x['filename'])
+                if "preview" in post.keys():
+                    media_string = f'{media_string}<div><img class="tweet-photo" src="{post["preview"]["href"][-1]}"/></div>'
+                if post['type'] == "Collection":
+                    if "items" in post.keys():
+                        media_string = f'{media_string}<div>Item is a video playlist or album, see raw data for attachment details</div>'
+                if "Attachments" in post.keys():
+                    for x in post['Attachments']:
+                        if x['type'] == "Image":
+                            media_file = os.path.join(dirpath, x['url'])
                             media_string = f'{media_string}<div><img class="tweet-photo" src="{media_file}"/></div>'
-                        if x['media_type'] == "video":
-                            thumbnail = os.path.join(dirpath, f"{x['filename'].split('.')[0]}_thumb.jpg")
-                            media_extension = x['filename'].split(".")[-1]
-                            media_file = os.path.join(dirpath, x['filename'])
-                            media_string = f'{media_string}<div><img class="tweet-photo" src="{thumbnail}"/>' + f'<video class="tweet-video" controls src="{media_file}"></video></div>'
-                if "shares" in post['engagement']:
-                    post_dict['share_count'] = post['engagement']['shares']
-                else:
-                    post_dict['share_count'] = 0
-                if "likes" in post['engagement']:
-                    post_dict['likes'] = post['engagement']['likes']
-                else:
-                    post_dict['likes'] = 0
-                if "links" in post['hooks'] and post['hooks']['links'] is not None:
-                    for url in post['hooks']['links']:
-                        a = f'<a href="{url["url"]}>{url["truncated_url"]}</a>'
-                        post_dict['text'] = post_dict['text'][0:].replace(url['truncated_url'], a)
+                        if x['type'] == "Video":
+                            thumbnail = ""
+                            if "preview" in x.keys():
+                                thumbnail = os.path.join(dirpath, f"{x['preview']['href']}")
+                            media_extension = x['url'].split(".")[-1]
+                            media_file = os.path.join(dirpath, x['url'])
+                            media_string = f'{media_string}<div><video class="tweet-video" controls src="{media_file}"></video></div>'
+                            if thumbnail != "":
+                                media_string = f'{media_string}<div><img class="tweet-photo" src="{thumbnail}"/>' + f'<video class="tweet-video" controls src="{media_file}"></video></div>'
+
                 current = f'''<article class="tweet">
-                  <img class="avatar" src="{current_avatar}">
                   <a href="{post_dict['user_url']}" class="name">{post_dict['name']}</a><br>
                   <span class="username">{post_dict['username']}</span><br>
                   <br>
                   <div class="text">{post_dict['text']}</div><br>
                   {media_string}
                   <footer>
-                  {post_dict['retweet_count']} {post_dict['retweet_string']}, {post_dict['favorite_count']} {post_dict['favorite_string']}<br>
+                  {engagement_text}<br>
                   <a href="{post_dict['url']}"><time>{post_dict['created_at']}</time></a>
                   </footer>
                 </article>'''
@@ -290,8 +329,6 @@ def create_wall(target_folder=str):
         </header>
         <div class="parent">
         <div class="left">
-            <img class="avatar-column" src="{current_avatar}"/>
-            <br/>
             <div>{year_block}</div>
         </div>
        <div id="tweets">'''
@@ -693,7 +730,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                     # clear any existing normalized json data by switching data types and switching back
                     normalized_json = 0
                     normalized_json = {}
-                    with open(filename, 'r') as r:
+                    with open(filename, 'r', encoding='utf-8') as r:
                         filedata = r.read()
                         json_data = json.loads(filedata)
                         normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams", {"youtube": 'https:///www.youtube.com'}]
@@ -727,7 +764,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                 for item in json_data['thumbnails']:
                                     thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
                                     if os.path.isfile(thumbnail_name):
-                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
+                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1].split('\\'), "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
                             normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
                             normalized_json['engagement'].append({'type': "Likes", 'count': json_data['like_count']})
@@ -737,7 +774,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                             mini_dict['mediaType'] = f"video/{json_data['ext']}"
                             base_filename = filename[:-4]
                             if os.path.isfile(f"{base_filename}{json_data['ext']}"):
-                                mini_dict['url'] = f"{base_filename.split('/')[-1]}{json_data['ext']}"
+                                mini_dict['url'] = base_filename.split('/')[-1].split('\\')[-1] + f"{json_data['ext']}"
                             if "url" not in mini_dict.keys():
                                 mini_dict['url'] = json_data['webpage_url']
                                 normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
