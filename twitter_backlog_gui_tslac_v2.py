@@ -25,6 +25,19 @@ import yt_dlp
 
 my_icon = b'iVBORw0KGgoAAAANSUhEUgAAAWQAAAFkCAMAAAAgxbESAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAACvlBMVEUAwAAEwQQmySZH0kdn2WeG4Yai6KK17bXI8cjb9tvu++70/PT///9m2WZG0UYlySUFwQU4zjhw3HCf55/N8834/fj3/ffM8sye5543zjcDwQM7zzuD4IPC8ML2/fbB8MGC4II6zjoMwwxY1lip6qnt++2o6qhX1VcLwwsGwQZS1FKr6qv1/fVR1FGI4ojo+eiR5JEryytE0US37bf+//627bZD0UNc11zQ89DP889Z1lkCwAIBwAFN003W9dZe117O885A0EAexx6z7LMiyCJ/339833w5zjnU9NTT9NOK4or9//38/vwoyijS9NItyy1h2GEHwgeZ5pkZxhnH8cfF8cUXxhfg9+Dk+OQvzC/v++/y/PJI0khO0075/vlU1VRa1lr7/vtg2GBl2WVk2WRd111i2GJW1VZB0EEqyirx/PHf99/E8MSY5piT5JMpyiknyifK8srh+OGS5JLi+OJV1VWv668Nww2x7LGQ5JCA4IB63nojySPj+OPl+eUgyCCw67Cq6qpC0EI/0D+U5ZTL8stK0kpQ1FAkySQOww5F0UW47bi07LSW5ZaJ4omF4YXn+edj2GPm+eas6qyy7LKm6abq+upu226l6aVJ0kmV5ZXr+us2zTZ+33697701zTWg6KCd552H4YeE4YTd993a9trw+/DD8MOh6KFy3HK17LUMwgy87rwPxA9M00wKwgq77rsSxBIQxBAUxRQfyB+57rkhyCHp+uksyywuyy7c9twzzTNv2288zzzZ9tkbxxts22wJwgl33Xe67rrG8cYdxx36/vqB4IHs+ux23XZ13XWb5psWxRZL00sVxRV73nve996t6619330TxRN43nij6KNz3HNq2mqk6aQRxBE0zTTJ8sl03XTR9NE9zz1T1VNf11/z/PMyzDJo2miP448+zz6X5ZcwzDAcxxyc55xsx1JfAAAAAWJLR0QMgbNRYwAAAAd0SU1FB+gKGAksMPnnNBMAAAxaSURBVHja7d39XxTHHQfwQwX1btDTiERQVKIBDCKxJz4cGg1YTThMQDE+VAgqiSiJ+EARCRqtj422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'
 
+def make_upload(preservation_directories=list, upload_folder=str):
+    for post in preservation_directories:
+        post = post.replace("\preservation2", "")
+        window['-OUTPUT-'].update(f"processing {post} for upload\n", append=True)
+        for dirpath, dirnames, filenames in os.walk(post):
+            for filename in filenames:
+                filename1 = os.path.join(dirpath, filename)
+                filename2 = filename1.replace(target_folder, upload_folder)
+                create_directory(filename2)
+                shutil.copy2(filename1, filename2)
+                shutil.copystat(filename1, filename2)
+                window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
+
 def make_metadata(metadata_dictionary):
     metadata = Element('dcterms:dcterms',
                        {'xmlns': 'http://dublincore.org/documents/dcmi-terms/',
@@ -78,8 +91,8 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
         for dirpath, dirname, filenames in os.walk(preservation_directory):
             for filename in filenames:
                 if filename.endswith(".json"):
-                    metadata_file = filename.replace(".json", ".metadata")
-                    metadata_file = os.path.join(dirpath, metadata_file)
+                    metadata_file = dirpath.split('\\')[-2]
+                    metadata_file = os.path.join(dirpath, f"{metadata_file}.metadata")
                     json_file = os.path.join(dirpath, filename)
                     j = open(json_file, "r", encoding='utf-8')
                     post = json.loads(j.read())
@@ -140,6 +153,7 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                             if "href" in hook.keys():
                                 hooky_text = hook['href']
                             if hooky_text != "":
+                                hooky_text = hooky_text.replace("#", "").replace("@", "")
                                 hooky = SubElement(metadata, f"tslac:socialMedia.{hook['type'].lower()}").text = hooky_text
                     writer = open(metadata_file, 'wt', encoding='utf-8')
                     writer.write(prettify(metadata))
@@ -150,7 +164,7 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
 def create_wall(target_folder=str):
     output = f"{target_folder}/wall.html"
     avatar = f"{target_folder}/profile_image/"
-    backlog = f"{target_folder}/backlog"
+    backlog = f"{target_folder}/"
     html_head = '''<!doctype html>
     <html>
     <head>
@@ -248,8 +262,9 @@ def create_wall(target_folder=str):
     year_list = set()
     for dirpath, dirnames, filenames in os.walk(backlog):
         for filename in filenames:
-            if filename.endswith(".json"):
-                current_year = filename.split("-")[0]
+            if filename.endswith(".json") and dirpath.endswith("preservation2"):
+                window['-OUTPUT-'].update(f"wall processing {filename}\n", append=True)
+                current_year = dirpath.split('\\')[-3]
                 if current_year != year:
                     post_text = (f'{post_text}<article class="tweet" style="border:2px solid orangered;border-radius:10px">'
                                  f'<h2 style="text-align:center" id="{current_year}">{current_year}</h2><br/>'
@@ -284,31 +299,32 @@ def create_wall(target_folder=str):
                 engagement_text = ""
                 if "engagement" in post.keys():
                     for item in post['engagement']:
-                        engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
+                        engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}"
                 media_string = ""
                 if "preview" in post.keys():
-                    media_string = f'{media_string}<div><img class="tweet-photo" src="{post["preview"]["href"][-1]}"/></div>'
+                    media_string = f'{media_string}<div><img class="tweet-photo" src="{dirpath}/{post["preview"]["href"]}"/></div>'
                 if post['type'] == "Collection":
                     if "items" in post.keys():
                         media_string = f'{media_string}<div>Item is a video playlist or album, see raw data for attachment details</div>'
-                if "Attachments" in post.keys():
-                    for x in post['Attachments']:
+                if "attachments" in post.keys():
+                    for x in post['attachments']:
                         if x['type'] == "Image":
-                            media_file = os.path.join(dirpath, x['url'])
+                            media_file = os.path.join(dirpath, x['uri'])
                             media_string = f'{media_string}<div><img class="tweet-photo" src="{media_file}"/></div>'
                         if x['type'] == "Video":
                             thumbnail = ""
                             if "preview" in x.keys():
-                                thumbnail = os.path.join(dirpath, f"{x['preview']['href']}")
+                                thumbnail = os.path.join(dirpath, f"{x['preview']['url']['href']}")
                             media_extension = x['url'].split(".")[-1]
                             media_file = os.path.join(dirpath, x['url'])
-                            media_string = f'{media_string}<div><video class="tweet-video" controls src="{media_file}"></video></div>'
+                            if thumbnail == "":
+                                media_string = f'{media_string}<div><video class="tweet-video" controls src="{media_file}"></video></div>'
                             if thumbnail != "":
                                 media_string = f'{media_string}<div><img class="tweet-photo" src="{thumbnail}"/>' + f'<video class="tweet-video" controls src="{media_file}"></video></div>'
 
                 current = f'''<article class="tweet">
-                  <a href="{post_dict['user_url']}" class="name">{post_dict['name']}</a><br>
-                  <span class="username">{post_dict['username']}</span><br>
+                  <a href="{post_dict['user_url'].split(': ')[-1]}" class="name">{post_dict['name']}</a><br>
+                  <span class="username">User id: {post_dict['username']}</span><br>
                   <br>
                   <div class="text">{post_dict['text']}</div><br>
                   {media_string}
@@ -324,7 +340,7 @@ def create_wall(target_folder=str):
     for item in year_list:
         year_block = f'{year_block}<a href="#{item}" style="font-size:1.5em">{item}</a><br/>'
     header = f'''<header>
-        <h1>{post_dict['name']} twitter wall</h1>
+        <h1>{post_dict['name']} {platform} wall</h1>
         <em>Tweet formatting adapted from code for wall generation at <a href="https://github.com/DocNow/twarc">twarc</a></em>
         </header>
         <div class="parent">
@@ -333,7 +349,7 @@ def create_wall(target_folder=str):
         </div>
        <div id="tweets">'''
     html = f"{html_head}{header}{post_text}{html_foot}"
-    with open(output, "w") as w:
+    with open(output, "w", encoding='utf-8') as w:
         w.write(html)
     w.close()
 
@@ -764,7 +780,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                 for item in json_data['thumbnails']:
                                     thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
                                     if os.path.isfile(thumbnail_name):
-                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1].split('\\'), "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
+                                        normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1].split('\\')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
                             normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
                             normalized_json['engagement'].append({'type': "Likes", 'count': json_data['like_count']})
@@ -1076,8 +1092,8 @@ def normalize_twitter_activitystream(preservation_directories=list):
                         if "media" in json_data['entities'].keys():
                             # insert media handler here
                             media_set = json_data['extended_entities']['media']
-                            if "Attachments" not in normalized_json.keys():
-                                normalized_json['Attachments'] = []
+                            if "attachments" not in normalized_json.keys():
+                                normalized_json['attachments'] = []
                             for current_media in media_set:
                                 # clear prior mini_dict in case something is lingering
                                 mini_dict = ""
@@ -1087,7 +1103,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     mini_dict['uri'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
                                     mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
                                     mini_dict['id'] = current_media['id_str']
-                                    normalized_json['Attachments'].append(mini_dict)
+                                    normalized_json['attachments'].append(mini_dict)
                                 if current_media['type'] == "video":
                                     preview = ""
                                     preview = {
@@ -1142,7 +1158,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                 mini_dict['mediaType'] = variant['content_type']
                                                 mini_dict['url'] = variant['url'].split('/')[-1]
                                         if mini_dict != {}:
-                                            normalized_json['Attachments'].append(mini_dict)
+                                            normalized_json['attachments'].append(mini_dict)
                                 if current_media['type'] == "animated_gif":
                                     preview = ""
                                     preview = {
@@ -1161,7 +1177,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     if "bitrate" in current_media['video_info']['variants'][0].keys():
                                         mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
                                     mini_dict['preview'] = preview
-                                    normalized_json['Attachments'].append(mini_dict)
+                                    normalized_json['attachments'].append(mini_dict)
                         normalized_json = normalization_tags(normalized_json, content_text, "twitter")
 
                         with open(filename, 'w') as w:
@@ -2312,18 +2328,8 @@ while True:
                     upload_folder = values['-UploadStaging-']
                 else:
                     upload_folder = f"{target_folder}_upload"
-                for post in preservation_directories:
-                    post = post.replace("/preservation2", "")
-                    for dirpath, dirnames, filenames in os.walk(post):
-                        for filename in filenames:
-                            filename1 = os.path.join(dirpath, filename)
-                            filename2 = filename1.replace(target_folder, upload_folder)
-                            create_directory(filename2)
-                            shutil.copy2(filename1, filename2)
-                            shutil.copystat(filename1, filename2)
-                            window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
+                make_upload(preservation_directories, upload_folder)
                 window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
-
         upload_list = set()
         year_list = set()
         if target_file != "" and target_folder != "" and source_folder != "":
@@ -2358,14 +2364,7 @@ while True:
                         upload_folder = values['-UploadStaging-']
                     else:
                         upload_folder = f"{target_folder}_upload"
-                    for post in preservation_directories:
-                        for dirpath, dirnames, filenames in os.walk(post):
-                            filename1 = os.path.join(dirpath, filename)
-                            filename2 = filename1.replace(target_folder, upload_folder)
-                            create_directory(filename2)
-                            shutil.copy2(filename1, filename2)
-                            shutil.copystat(filename1, filename2)
-                            window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n", append=True)
+                    make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
 
             if values['-TYPE_facebook_page-'] is True:
@@ -2393,16 +2392,7 @@ while True:
                         upload_folder = values['-UploadStaging-']
                     else:
                         upload_folder = f"{target_folder}_upload"
-                    for post in preservation_directories:
-                        for dirpath, dirnames, filenames in os.walk(post):
-                            for filename in filenames:
-                                filename1 = os.path.join(dirpath, filename)
-                                filename2 = filename1.replace(target_folder, upload_folder)
-                                create_directory(filename2)
-                                shutil.copy2(filename1, filename2)
-                                shutil.copystat(filename1, filename2)
-                                window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n",
-                                                          append=True)
+                    make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
             if values['-TYPE_instagram-'] is True:
                 window['-OUTPUT-'].update(f"Starting processing instagram account data\n", append=True)
@@ -2429,366 +2419,8 @@ while True:
                         upload_folder = values['-UploadStaging-']
                     else:
                         upload_folder = f"{target_folder}_upload"
-                    for post in preservation_directories:
-                        for dirpath, dirnames, filenames in os.walk(post):
-                            filename1 = os.path.join(dirpath, filename)
-                            filename2 = filename1.replace(target_folder, upload_folder)
-                            create_directory(filename2)
-                            shutil.copy2(filename1, filename2)
-                            shutil.copystat(filename1, filename2)
-                            window['-OUTPUT-'].update(f"copied {filename} to upload staging area\n",
-                                                      append=True)
+                    make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
-                '''
-                my_precious = source_folder + "/data/tweet.js"
-                my_data = source_folder + "/data"
-                if os.path.isfile(my_precious):
-                    window['-OUTPUT-'].update("twitter archive already extracted, moving on\n", append=True)
-                if not os.path.isfile(my_precious):
-                    window['-OUTPUT-'].update("extracting twitter archive for manipulation...\n", append=True)
-                    crazy = zipfile.ZipFile(target_file)
-                    crazy.extractall(source_folder)
-                window['-OUTPUT-'].update("processing tweets...\n", append=True)
-                window['-STATUS-'].update(
-                    "Go get a cup of coffee, you deserve it. Press ctrl+c in the terminal window to stop processing.\n",
-                    text_color="green2")
-                valuables = {}
-                valuables['source_dir'] = my_data
-                valuables['base_location'] = target_folder
-                if metadata_citation != "":
-                    valuables[
-                        'preferredCitation'] = metadata_citation + ". Archives and Information Services Division, Texas State Library and Archives Commission."
-                if metadata_creator != "":
-                    valuables['agency'] = metadata_creator
-                print("starting the process")
-                log = open("logger.txt", "a")
-                id_list = []
-                baseline = valuables[
-                               'base_location'] + "/"  # + "/" + valuables['agency'] + "/" + valuables['harvestType'] + "/"
-                if not os.path.isfile(baseline + "log_tweetIDs.txt"):
-                    create_directory(baseline + "log_tweetIDs.txt")
-                    with open(baseline + "log_tweetIDs.txt", "a") as w:
-                        print("tweet log file created")
-                    w.close()
-                with open(baseline + "log_tweetIDs.txt", "r") as r:
-                    for line in r:
-                        line = line[:-1]
-                        id_list.append(line)
-                r.close()
-                print("list of existing tweets compiled")
-                id_list2 = []
-                # start creating the user structure
-                user_data = {}
-                with open(valuables['source_dir'] + "/account.js", "r") as data:
-                    json_data = data.read()
-                    json_data = json_data.replace('window.YTD.account.part0 = [\n  ', '')
-                    json_data = json_data.replace('\n]', '')
-                    user = json.loads(json_data)
-                    user_data['id'] = int(user['account']['accountId'])
-                    user_data['id_str'] = user['account']['accountId']
-                    user_data['name'] = user['account']['accountDisplayName']
-                    user_data['screen_name'] = user['account']['username']
-                    user_data['created_at'] = user['account']['createdAt']
-                print("account data loaded")
-                with open(valuables['source_dir'] + "/profile.js", "r") as data:
-                    json_data = data.read()
-                    json_data = json_data.replace('window.YTD.profile.part0 = [\n  ', '')
-                    json_data = json_data.replace('\n]', '')
-                    user = json.loads(json_data)
-                    user_data['location'] = user['profile']['description']['location']
-                    user_data['description'] = user['profile']['description']['bio']
-                    user_data['url'] = user['profile']['description']['website']
-                    user_data['profile_image_url'] = user['profile']['avatarMediaUrl']
-                    user_data['profile_image_url_https'] = user['profile']['avatarMediaUrl']
-                    user_data['profile_banner_url'] = user['profile']['headerMediaUrl']
-                print("profile data loaded")
-                with open(valuables['source_dir'] + "/tweet.js", "r") as backlog:
-                    json_data = backlog.read()
-                    if "window.YTD.tweet.part0 = " in json_data:
-                        json_data = json_data.replace("window.YTD.tweet.part0 = ", "")
-                    twitter = json.loads(json_data)
-                    print(twitter)
-                    counter = 0
-                    for tweet in twitter:
-                        total = len(twitter)
-                        counter += 1
-                        window['-OUTPUT-'].update(f" processing {counter}/{total}")
-                        window['-Progress-'].update_bar(counter, total)
-                        # sg.one_line_progress_meter("Progress",counter,total,orientation="h")
-                        # denest the tweet
-                        tweet = tweet['tweet']
-                        tweet_date = datetime.datetime.strptime(tweet['created_at'], '%a %b %d %H:%M:%S %z %Y').strftime(
-                            '%Y-%m-%d')
-                        print(tweet_date)
-                        tweet['created_at'] = datetime.datetime.strptime(tweet['created_at'],
-                                                                         '%a %b %d %H:%M:%S %z %Y').ctime()
-                        if "+" not in tweet['created_at']:
-                            tweet['created_at'] = tweet['created_at'][:-4] + "+0000 " + tweet['created_at'][-4:]
-                            print(tweet['created_at'])
-                        if str(tweet['id']) not in id_list:
-                            filename = str(tweet_date) + "_" + str(tweet['id_str']) + '.txt'
-                            file_path1 = baseline + "backlog/" + str(tweet_date[:4]) + "/" + str(tweet_date) + "_" + str(
-                                tweet['id_str']) + "/"
-                            file_path = file_path1 + filename
-                            upload_list.add(file_path1)
-                            year_list.add(tweet_date[:4])
-                            if not os.path.exists(os.path.dirname(file_path)):
-                                os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                            tweet['user'] = user_data
-                            # make changes to json to have it match up with current data standard
-                            tweet['id'] = int(tweet['id'])
-                            if 'quoted_status' in tweet:
-                                tweet['quoted_status']['id'] = int(tweet['quoted_status']['id'])
-                            if 'hashtags' in tweet['entities']:
-                                for item in tweet['entities']['hashtags']:
-                                    item['indices'][0] = int(item['indices'][0])
-                                    item['indices'][1] = int(item['indices'][1])
-                            if 'symbols' in tweet['entities']:
-                                for item in tweet['entities']['symbols']:
-                                    item['indices'][0] = int(item['indices'][0])
-                                    item['indices'][1] = int(item['indices'][1])
-                                    item['id'] = int(item['id'])
-                            if 'user_mentions' in tweet['entities']:
-                                for item in tweet['entities']['user_mentions']:
-                                    item['indices'][0] = int(item['indices'][0])
-                                    item['indices'][1] = int(item['indices'][1])
-                                    item['id'] = int(item['id'])
-                            if 'urls' in tweet['entities']:
-                                for item in tweet['entities']['urls']:
-                                    item['indices'][0] = int(item['indices'][0])
-                                    item['indices'][1] = int(item['indices'][1])
-                            if 'quoted_status_id' in tweet:
-                                tweet['quoted_status_id'] = int(tweet['quoted_status_id'])
-                            if 'quoted_status' in tweet:
-                                tweet['quoted_status']['id'] = int(tweet['quoted_status']['id'])
-                                tweet['quoted_status']['display_text_range'][0] = int(
-                                    tweet['quoted_status']['display_text_range'][0])
-                                tweet['quoted_status']['display_text_range'][1] = int(
-                                    tweet['quoted_status']['display_text_range'][1])
-                            tweet['display_text_range'][0] = int(tweet['display_text_range'][0])
-                            tweet['display_text_range'][1] = int(tweet['display_text_range'][1])
-                            if 'in_reply_to_user_id' in tweet:
-                                tweet['in_reply_to_user_id'] = int(tweet['in_reply_to_user_id'])
-                            tweet['retweet_count'] = int(tweet['retweet_count'])
-                            tweet['favorite_count'] = int(tweet['favorite_count'])
-                            # reorder the json file
-                            dictOrder = ['created_at', 'id', 'id_str', 'full_text', 'truncated', 'display_text_range',
-                                         'entities',
-                                         'extended_entities', 'source', 'in_reply_to_status_id',
-                                         'in_reply_to_status_id_str',
-                                         'in_reply_to_user_id', 'in_reply_to_user_id_str', 'in_reply_to_screen_name',
-                                         'user',
-                                         'geo', 'coordinates', 'place', 'contributors', 'is_quote_status', 'retweet_count',
-                                         'favorite_count', 'favorited', 'retweeted', 'possibly_sensitive', 'lang']
-                            existingKeys = tweet.keys()
-                            secondlist = []
-                            for k in dictOrder:
-                                if k in existingKeys:
-                                    secondlist.append(k)
-                                else:
-                                    if k != "extended_entities":
-                                        tweet[k] = None
-                                        secondlist.append(k)
-                            tempDict = OrderedDict(tweet)
-                            for k in secondlist:
-                                tempDict.move_to_end(k)
-                            tempDict = dict(tempDict)
-                            tweet = json.loads(json.dumps(tempDict))
-                            # create the tweet file
-                            print(file_path)
-                            with open(file_path, "w") as output:
-                                json.dump(tweet, output)
-                            output.close()
-                            file_path2 = file_path[:-3] + "json"
-                            os.rename(file_path, file_path2)
-                            # create the sidecar metadata file
-                            hashtags = []
-                            if len(tweet['entities']['hashtags']) > 0:
-                                for item in tweet['entities']['hashtags']:
-                                    hashtags.append(item['text'])
-                            mentions = []
-                            if len(tweet['entities']['user_mentions']) > 0:
-                                for item in tweet['entities']['user_mentions']:
-                                    mentions.append(item['screen_name'])
-                            # generate metadata file
-                            if metadata_generator is True:
-                                metadata = Element('dcterms:dcterms',
-                                                   {'xmlns': 'http://dublincore.org/documents/dcmi-terms/',
-                                                    'xmlns:dcterms': 'http://dublincore.org/documents/dcmi-terms/',
-                                                    'xsi:schemaLocation': 'http://dublincore.org/documents/dcmi-terms/ qualifiedDcSchema.xsd',
-                                                    'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-                                                    'xmlns:tslac': 'https://www.tsl.texas.gov/'})
-                                title = SubElement(metadata, 'dcterms:title')
-                                title.text = tweet_date + ": tweet id " + str(tweet['id_str'])
-                                description = SubElement(metadata, "dcterms:description.abstract")
-                                description.text = "Tweet text: " + tweet['full_text']
-                                if 'agency' in valuables:
-                                    SubElement(metadata, 'dcterms:relation.isPartOf').text = valuables[
-                                                                                                 'agency'] + ' social media archive'
-                                if 'preferredCitation' in valuables:
-                                    SubElement(metadata,
-                                               'dcterms:bibliographicCitation').text = f"({title.text}), {valuables['preferredCitation']}"
-                                SubElement(metadata, 'dcterms:type').text = "Text"
-                                creator = SubElement(metadata, "dcterms:creator")
-                                creator.text = tweet['user']['name']
-                                date_created = SubElement(metadata, 'dcterms:date.created')
-                                date_created.text = tweet_date
-                                SubElement(metadata, "dcterms:subject").text = "Social media"
-                                SubElement(metadata, "dcterms:subject").text = "Twitter"
-                                SubElement(metadata, 'tslac:socialmedia.platform').text = "Twitter"
-                                SubElement(metadata, 'tslac:socialmedia.username').text = tweet['user']['screen_name']
-                                SubElement(metadata, 'tslac:socialmedia.identifier').text = str(tweet['id_str'])
-                                for item in hashtags:
-                                    SubElement(metadata, 'tslac:socialmedia.hashtag').text = item
-                                for item in mentions:
-                                    SubElement(metadata, 'tslac:socialmedia.mentions').text = item
-                                metadata_file = file_path2 + ".metadata"
-                                writer = open(metadata_file, 'wt', encoding='utf-8')
-                                writer.write(prettify(metadata))
-                            # continue processing
-                            id_list2.append(str(tweet['id_str']))
-                            # redownload the banner file and profile image just to be sure you h the current version
-                            profile_image_filename = baseline + "profile_image/" + \
-                                                     tweet['user']['profile_image_url_https'].split("/")[-1]
-                            profile_image_url = tweet['user']['profile_image_url_https']
-                            if not os.path.isfile(profile_image_filename):
-                                tweet_media_handler(profile_image_url, profile_image_filename)
-                            profile_banner_filename = baseline + "profile_banner/" + \
-                                                      tweet['user']['profile_banner_url'].split("/")[-1]
-                            profile_banner_url = tweet['user']['profile_banner_url']
-                            if not os.path.isfile(profile_banner_filename):
-                                tweet_media_handler(profile_banner_url, profile_banner_filename)
-                            # download the media files
-                            images = []
-                            if 'extended_entities' in tweet and tweet['extended_entities'] is not None and 'media' in tweet[
-                                'extended_entities']:
-                                for media in tweet['extended_entities']['media']:
-                                    id = media['id_str']
-                                    # downloading videos
-                                    if 'video_info' in media:
-                                        bitrate = 0
-                                        # set variable to download only the largest video copy and overwrite anything download to then
-                                        for v in media['video_info']['variants']:
-                                            if 'bitrate' in v:
-                                                if int(v['bitrate']) > bitrate:
-                                                    media_filename = v['url'].split(".")[-1]
-                                                    media_filename = media_filename.split("?")[0]
-                                                    media_filename = file_path1 + id + "." + media_filename
-                                                    tweet_media_handler(v['url'], media_filename)
-                                                    bitrate = int(v['bitrate'])
-                                        # save thumbnail image with _thumb at the end to be clear what it is
-                                        media_filename = file_path1 + media['id_str'] + "_thumb." + \
-                                                         media['media_url'].split(".")[-1]
-                                        tweet_media_handler(media['media_url_https'], media_filename)
-                                    # downloading everything else
-                                    else:
-                                        media_filename = file_path1 + media['id_str'] + "." + media['media_url'].split(".")[
-                                            -1]
-                                        tweet_media_handler(media['media_url_https'], media_filename)
-                                    images.append(id)
-                                    # add thumbnail or downloaded image to a list so it doesn't get done twice
-                            if 'media' in tweet['entities']:
-                                for media in tweet['entities']['media']:
-                                    # check list of media IDs to see if download is needed
-                                    if media['id_str'] not in images:
-                                        if media['type'] == 'photo':
-                                            media_filename = file_path1 + media['id_str'] + "." + \
-                                                             media['media_url'].split(".")[-1]
-                                            tweet_media_handler(media['media_url_https'], media_filename)
-                    with open(baseline + "log_tweetIDs.txt", "a") as f:
-                        for item in id_list2:
-                            f.write(item + "\n")
-                    f.close()
-                # start processing the upload
-                window['-OUTPUT-'].update('\nstarting upload prep\n', append=True)
-                window['-OUTPUT-'].update('resetting status bar\n', append=True)
-                counter = 0
-                total = len(upload_list)
-                window['-Progress-'].update_bar(counter,total)
-                upload_list = list(upload_list)
-                upload_list.sort()
-                print(upload_list)
-                year_list = list(year_list)
-                year_list.sort()
-                create_structure_template = {'dirTitle':'',
-                                             'prefix':values['-PREFIX-'],
-                                             'tempDir':target_folder}
-                year_dict = {}
-                for item in year_list:
-                    structure_dict = create_structure_template
-                    structure_dict['dirTitle'] = item
-                print(year_dict)
-                valuables = ""
-                valuables = {'agency':values['-CREATOR-'],
-                             'harvestType': 'twitter',
-                             'harvest_type': 'timeline',
-                             'collectionName': collectionName,
-                             'preferredCitation': metadata_citation + ". Archives and Information Services Division, Texas State Library and Archives Commission.",
-                             'source_dir': target_folder}
-                upload_dict_template = {'preservation_directory':"",
-                                        'asset_title':"",
-                                        'parent_uuid':valuables['parentFolder'],
-                                        'asset_tag':'open',
-                                        'export_directory':values['-UploadStaging-'],
-                                        'asset_description':'',
-                                        'username': values['-USERNAME-'],
-                                        'password':values['-PASSWORD-'],
-                                        'tenant':values['-TENANCY-'],
-                                        'prefix':values['-PREFIX-'],
-                                        'custom_type':'Tweet',
-                                        'ignore':['.metadata','.db'],
-                                        'timeframe':'',
-                                        'metadata_file':''}
-                for item in upload_list:
-                    counter += 1
-                    window['-Progress-'].update_bar(counter,total)
-                    window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
-                    upload_dict = upload_dict_template
-                    upload_dict['parent_uuid'] = year_dict[item.split("/")[-3]]
-                    upload_dict['preservation_directory'] = item
-                    upload_dict['asset_title'] = item.split("/")[-2]
-                    upload_dict['timeframe'] = "staging/" + item.split("/")[-3]
-                    upload_dict['metadata_file'] = item + item.split("/")[-2] + ".json.metadata"
-                    pax_prep_withXIP(upload_dict)
-                for year in year_list:
-                    directory = values['-UploadStaging-'] + "/staging/" + year
-                    zippy = str(uuid.uuid4())
-                    zippy_name = values['-UploadStaging-'] + "/staging/" + zippy
-                    shutil.make_archive(zippy_name,"zip",directory)
-                #clean-up
-                directory_list = set()
-                file_list = set()
-                for dirpath, dirnames, filenames in os.walk(values['-UploadStaging-']):
-                    for filename in filenames:
-                        filename = os.path.join(dirpath,filename)
-                        file_list.add(filename)
-                        directory_list.add(dirpath)
-                file_list = list(file_list)
-                file_list.sort()
-                total = len(file_list)
-                counter = 0
-                for item in file_list:
-                    os.remove(item)
-                    counter += 1
-                    window['-Progress-'].update_bar(counter, total)
-                    window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
-                time.sleep(5)
-                directory_list = list(directory_list)
-                directory_list.sort()
-                total = len(file_list)
-                counter = 0
-                for item in directory_list:
-                    try:
-                        os.removedirs(item)
-                        window['-Progress-'].update_bar(counter, total)
-                        window['-OUTPUT-'].update(f"processing {counter}/{total}, {item}")
-                    except:
-                        continue
-                if wall is True:
-                    window['-OUTPUT-'].update("\ngenerating twitter wall html page", append=True)
-                    twitter_wall_tool.wall_tool(target_folder)
-                # twitter_backlog(valuables)
-                window['-OUTPUT-'].update("\nall done, click on Close to exit", append=True)'''
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",
                                       font=("Calibri", "12", "bold"))
