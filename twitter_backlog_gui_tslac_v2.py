@@ -1,26 +1,18 @@
 import PySimpleGUI as sg
 import zipfile
 import os
-import time
-import re
-from os import listdir
-from os.path import isfile, join
 import datetime
 import json
 import hashlib
 import shutil
 import sys
 import requests
-import threading
-import uuid
-import lxml.etree as ET
 # for creating the metadata file
 from xml.dom import minidom
 from xml.etree import ElementTree
 from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
-import twitter_wall_tool
 import yt_dlp
 
 my_icon = b'iVBORw0KGgoAAAANSUhEUgAAAWQAAAFkCAMAAAAgxbESAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAACvlBMVEUAwAAEwQQmySZH0kdn2WeG4Yai6KK17bXI8cjb9tvu++70/PT///9m2WZG0UYlySUFwQU4zjhw3HCf55/N8834/fj3/ffM8sye5543zjcDwQM7zzuD4IPC8ML2/fbB8MGC4II6zjoMwwxY1lip6qnt++2o6qhX1VcLwwsGwQZS1FKr6qv1/fVR1FGI4ojo+eiR5JEryytE0US37bf+//627bZD0UNc11zQ89DP889Z1lkCwAIBwAFN003W9dZe117O885A0EAexx6z7LMiyCJ/339833w5zjnU9NTT9NOK4or9//38/vwoyijS9NItyy1h2GEHwgeZ5pkZxhnH8cfF8cUXxhfg9+Dk+OQvzC/v++/y/PJI0khO0075/vlU1VRa1lr7/vtg2GBl2WVk2WRd111i2GJW1VZB0EEqyirx/PHf99/E8MSY5piT5JMpyiknyifK8srh+OGS5JLi+OJV1VWv668Nww2x7LGQ5JCA4IB63nojySPj+OPl+eUgyCCw67Cq6qpC0EI/0D+U5ZTL8stK0kpQ1FAkySQOww5F0UW47bi07LSW5ZaJ4omF4YXn+edj2GPm+eas6qyy7LKm6abq+upu226l6aVJ0kmV5ZXr+us2zTZ+33697701zTWg6KCd552H4YeE4YTd993a9trw+/DD8MOh6KFy3HK17LUMwgy87rwPxA9M00wKwgq77rsSxBIQxBAUxRQfyB+57rkhyCHp+uksyywuyy7c9twzzTNv2288zzzZ9tkbxxts22wJwgl33Xe67rrG8cYdxx36/vqB4IHs+ux23XZ13XWb5psWxRZL00sVxRV73nve996t6619330TxRN43nij6KNz3HNq2mqk6aQRxBE0zTTJ8sl03XTR9NE9zz1T1VNf11/z/PMyzDJo2miP448+zz6X5ZcwzDAcxxyc55xsx1JfAAAAAWJLR0QMgbNRYwAAAAd0SU1FB+gKGAksMPnnNBMAAAxaSURBVHja7d39XxTHHQfwQwX1btDTiERQVKIBDCKxJz4cGg1YTThMQDE+VAgqiSiJ+EARCRqtj422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'
@@ -122,7 +114,10 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                     title.text = f"{date} {platform} {post_type}: {post_type} id {post['id']}"
                     # title.text = f"{filename.split('_')[0]}: {post['platform']} post id {post['post_id']}"
                     description = SubElement(metadata, 'dcterms:description.abstract')
-                    description.text = f"{platform} {post_type} text: {post['content']}"
+                    if "content" in post.keys():
+                        description.text = f"{platform} {post_type} text: {post['content']}"
+                    elif "summary" in post.keys():
+                        description.text = f"{platform} {post_type} summary: {post['summary']}"
                     # description.text = f"{post['platform']} post text: {post['content_text']}"
                     collectionName = SubElement(metadata, 'dcterms:relation.isPartOf')
                     collectionName.text = collection_name
@@ -155,9 +150,18 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                             if hooky_text != "":
                                 hooky_text = hooky_text.replace("#", "").replace("@", "")
                                 hooky = SubElement(metadata, f"tslac:socialMedia.{hook['type'].lower()}").text = hooky_text
-                    writer = open(metadata_file, 'wt', encoding='utf-8')
-                    writer.write(prettify(metadata))
-                    window['-OUTPUT-'].update(f"generated metadata for {filename}\n", append=True)
+                    try:
+                        writer = open(metadata_file, 'wt', encoding='utf-8')
+                        writer.write(prettify(metadata))
+                        window['-OUTPUT-'].update(f"generated metadata for {filename}\n", append=True)
+                    except:
+                        try:
+                            writer = open(metadata_file, 'wb')
+                            writer.write(ElementTree.tostring(metadata, encoding='utf-8', method='xml'))
+                            window['-OUTPUT-'].update(f"generated metadata for {filename}\n", append=True)
+                            continue
+                        except:
+                            raise
     window['-OUTPUT-'].update(f"generated all metadata\n", append=True)
 
 #wall building definition
@@ -293,13 +297,15 @@ def create_wall(target_folder=str):
                              'name': post['actor'][0]['name'],
                              'username': post['actor'][0]['id'],
                              'user_url': f"{platform}: {post['actor'][0]['url']}",
-                             "text": post['content'],
+                             "text": "",
                              "url": f"{platform}: {post['actor'][0]['name']}, {post_type} id {post['id']}"}
+                if "content" in post.keys():
+                    post_dict['text'] = post['content']
                 # current_avatar = f"{avatar}{post['user']['profile_image_url'].split('/')[-1]}"
                 engagement_text = ""
                 if "engagement" in post.keys():
                     for item in post['engagement']:
-                        engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}"
+                        engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
                 media_string = ""
                 if "preview" in post.keys():
                     media_string = f'{media_string}<div><img class="tweet-photo" src="{dirpath}/{post["preview"]["href"]}"/></div>'
@@ -309,7 +315,7 @@ def create_wall(target_folder=str):
                 if "attachments" in post.keys():
                     for x in post['attachments']:
                         if x['type'] == "Image":
-                            media_file = os.path.join(dirpath, x['uri'])
+                            media_file = os.path.join(dirpath, x['url'])
                             media_string = f'{media_string}<div><img class="tweet-photo" src="{media_file}"/></div>'
                         if x['type'] == "Video":
                             thumbnail = ""
@@ -387,9 +393,12 @@ def split_facebook_mention(text_block):
     return tag_list
 
 def prettify(elem):
-    rough_string = ElementTree.tostring(elem, 'utf-8')
-    reparse = minidom.parseString(rough_string)
-    return reparse.toprettyxml(indent="    ")
+    rough_string = ElementTree.tostring(elem, 'utf-8', method='xml')
+    try:
+        reparse = minidom.parseString(rough_string)
+        return reparse.toprettyxml(indent="    ")
+    except:
+        return rough_string
 
 def create_directory(fileName):
     if not os.path.exists(os.path.dirname(fileName)):
@@ -1100,7 +1109,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                 mini_dict = {}
                                 if current_media['type'] == "photo":
                                     mini_dict['type'] = "Image"
-                                    mini_dict['uri'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
+                                    mini_dict['url'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
                                     mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
                                     mini_dict['id'] = current_media['id_str']
                                     normalized_json['attachments'].append(mini_dict)
@@ -1466,15 +1475,15 @@ def normalize_facebook_activityStream(preservation_directories=list):
                         normalized_json['actor'] = []
                         normalized_json['actor'].append({"type": "Facebook page",
                                                          "id": json_data['user']['id_str'],
+                                                         "url": f"https://www.facebook.com/{json_data['user']['id_str']}",
                                                          "name": json_data['user']['screen_name']})
                         text_block = ""
                         if "cover_photo" in json_data.keys():
                             normalized_json['preview'] = {'type': "Image",
                                                           "name": "Cover Photo",
-                                                          "url": {
-                                                              "href": json_data['cover_photo']['uri'].split("/")[-1],
-                                                              "mediaType": f"image/{json_data['cover_photo']['uri'].split('.')[-1]}"
-                                                          }}
+                                                          "href": json_data['cover_photo']['uri'].split("/")[-1],
+                                                          "mediaType": f"image/{json_data['cover_photo']['uri'].split('.')[-1]}"
+                                                          }
                         if json_data['post_type'] == "facebook_album":
                             text_block = f"{json_data['description']} {json_data['name']}"
                             normalized_json = normalization_tags(normalized_json, text_block, 'facebook')
@@ -1490,10 +1499,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                 short_dictionary = ""
                                 short_dictionary = {'type': 'Image',
                                                     'title': item['title'],
-                                                    'uri': item['uri'].split("/")[-1],
+                                                    'url': item['uri'].split("/")[-1],
                                                     'dcterms:date.created': str(datetime.datetime.fromtimestamp(item['creation_timestamp']))}
-                                if len(short_dictionary['uri'].split(".")[-1]) == 3:
-                                    short_dictionary['mediaType'] = f"image/{short_dictionary['uri'].split('.')[-1]}"
+                                if len(short_dictionary['url'].split(".")[-1]) == 3:
+                                    short_dictionary['mediaType'] = f"image/{short_dictionary['url'].split('.')[-1]}"
                                 if "media_metadata" in item.keys():
                                     if "photo_metadata" in item['media_metadata'].keys():
                                         if "exif_data" in item['media_metadata']['photo_metadata'].keys():
@@ -1536,10 +1545,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             normalized_json['published'] = str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))
                             normalized_json['summary'] = f"Facebook post: Post ID {json_data['post_id']}"
                             short_dictionary = {'type': 'Image',
-                                                'uri': json_data['uri'].split('/')[-1],
+                                                'url': json_data['uri'].split('/')[-1],
                                                 'dcterms:date.created': str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))}
-                            if len(short_dictionary['uri'].split(".")[-1]) == 3:
-                                short_dictionary['mediaType'] = f"image/{short_dictionary['uri'].split('.')[-1]}"
+                            if len(short_dictionary['url'].split(".")[-1]) == 3:
+                                short_dictionary['mediaType'] = f"image/{short_dictionary['url'].split('.')[-1]}"
                             if "media_metadata" in json_data.keys():
                                 if "photo_metadata" in json_data['media_metadata'].keys():
                                     if "exif_data" in json_data['media_metadata']['photo_metadata'].keys():
@@ -1557,10 +1566,10 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             if "title" in json_data.keys():
                                 normalized_json['name'] = json_data['title']
                             short_dictionary = {'type': "Video",
-                                                'uri': json_data['uri'].split("/")[-1],
+                                                'url': json_data['uri'].split("/")[-1],
                                                 'dcterms:date.created': str(datetime.datetime.fromtimestamp(json_data['creation_timestamp']))}
-                            if len(short_dictionary['uri'].split(".")[-1]) == 3:
-                                short_dictionary['mediaType'] = f"video/{short_dictionary['uri'].split('.')[-1]}"
+                            if len(short_dictionary['url'].split(".")[-1]) == 3:
+                                short_dictionary['mediaType'] = f"video/{short_dictionary['url'].split('.')[-1]}"
                             if "media_metadata" in json_data.keys():
                                 if "video_metadata" in json_data['media_metadata'].keys():
                                     if "exif_data" in json_data['media_metadata']['video_metadata'].keys():
@@ -1595,12 +1604,12 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                         if "media" in single_attachment.keys():
                                             single_attachment = single_attachment['media']
                                             short_dictionary = {'type': 'Media',
-                                                                'uri': single_attachment['uri'].split('/')[-1],
+                                                                'url': single_attachment['uri'].split('/')[-1],
                                                                 'dcterms:date.created': str(
                                                                     datetime.datetime.fromtimestamp(
                                                                         single_attachment['creation_timestamp']))}
-                                            if len(short_dictionary['uri'].split(".")[-1]) == 3:
-                                                short_dictionary['mediaType'] = f"media/{short_dictionary['uri'].split('.')[-1]}"
+                                            if len(short_dictionary['url'].split(".")[-1]) == 3:
+                                                short_dictionary['mediaType'] = f"media/{short_dictionary['url'].split('.')[-1]}"
                                             else:
                                                 short_dictionary['mediaType'] = "media/unknown"
                                             mini_textblock = ""

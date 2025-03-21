@@ -1,9 +1,34 @@
+# Documentation under construction
 # Social Media Processors at TSLAC
-This repository is specific to the Texas State Library and Archives Commission and includes the processors intended to use in order to harvest/process social media files. Some of these tools may be re-usable by state agencies in which case they will be marked with a suffix `_agencies`
+This repository has paradigms specific to the Texas State Library and Archives Commission and this should be taken into account when considering usage. twitter_backlog_gui_tslac, twitter_backlog_gui_agencies, twitter_wall_tool, upload_backlog and twitter_backlog are all deprecated and superseded by twitter_backlog_gui_tslac_v2. These other scripts are left in historical reference but are not intended for current use.
 
 **Note**: These tools require installation of python3.9 and all dependencies. If you receive an error message about needing to install a specific library, it probably isn't in your distribution by default.
 
-**Another note**: This was developed using Anaconda on a Linux operating system. It should work in a Windows environment without Anaconda so long as all the requirements are installed but we cannot guarantee that.
+**Another note**: While this was developed in a Linux environment it is intended for generating a Windows OS executable file. In Linux this was accomplished using `Wine`, which must be installed separately. If compiling natively in Windows OS It is possible the difference between the two factors can come into conflict, no tests have been run to rule this out. There may also be some difference in the underlying libraries, although this seems unlikely.
+
+**Yet another note:** The graphical interface for this was written in pysimplegui using a prior iteration, which was free to use. If compiling this executable from scratch with the most modern version of the library there may be a licensing fee.
+
+## Instructions for compiling the executable
+1. Install all dependencies. These are PySimpleGUI, zipfile, os, datetime, json, hashlib, shutil, sys, requests, xml, errno, yt_dlp. Ensure you are installing yt_dlp and not yt_dl; yt_dl had a couple of issues that could not be resolved for the purpose of this project.
+2. Ensure ffmpeg is installed on your computer and is on the system path. This is specifically for YouTube handling. If it isn't and you can't get it to work, then you should be able to run this tool so long as it is n the same folder as the ffmpeg executable that can be downloaded for command line use. To get ffmpeg as an executable goto `https://www.gyan.dev/ffmpeg/builds/` and download the latest full release. Unzip the folder and drop the twitter_backlog_gui executable into the `/bin` subfolder of ffmpeg.
+3. Run pyinstaller (should have come bundled with PySimpleGUI but if it didn't go install it) using a command like `pyinstaller -wF [filepath to the backlog_gui script]`. It'll take a little bit of time to compile. If something goes wrong and you need to retry, make sure to delete the contents of the `/build` subfolder or else you'll just carry the problem to the next attempt.
+4. Get the compiled executable from the `/dist` directory and drop it wherever.
+
+### Alternative to running as an executable
+This tool may work directly from the script. It will generate the executable window and from there operate as you otherwise would have. Note that an     executable method was targeted for speed compared to a GUI tool script in a Linux virtual machine, running as a script directly in Windows OS may or may not be slower.
+## `twitter_backlog_gui_tslac_v2.py`
+## Usage notes
+### Usage for non-archives
+Ignore and do not check the `Export Metadata?` checkbox
+
+Get correspondence checkbox is for you to download correspondence type records. As this is how it is being considered, it is not processed into the same directory as posts. 
+### Usage notes for archives that aren't TSLAC
+You will need a good text editor to bulk update the exported metadata to whatever standard you choose to use. Metadata is exported using tslac-specific schema details and tslac-specific metadata. This is not configurable within the tool, you will have to modify the script to make changes to how that is done. Or identify what you do not care for and use the text editor to make batch changes.
+### Normal usage notes (for everyone)
+This tool works on the premise of downloading account data from a social media company and directly processing the zip file. It is highly dependent on tracking the structure of the platform-provided zip file so it is important.
+
+
+# old documentation below, will be deleted shortly
 
 ## `twitter_backlog_gui_agencies.py`
 A graphical interface tool intended for state agencies or other non-archive users. It is standalone with a graphical interface. There is no command-line or graphical interface.
