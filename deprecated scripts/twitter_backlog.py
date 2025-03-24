@@ -38,7 +38,7 @@ def tweet_media_handler(url, filename):
 
 
 def twitter_backlog(credentials: dict, valuables: dict, passcodes: dict):
-    log = open("logger.txt", "a")
+    log = open("../logger.txt", "a")
     t = Twarc(consumer_key=credentials['twitter_consumer_key'],
               consumer_secret=credentials['twitter_consumer_secret'],
               access_token=credentials['twitter_access_token'],

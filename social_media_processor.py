@@ -2438,8 +2438,4 @@ while True:
         break
 window.close()
 
-#TODO make each section a definition so it is object-oriented
-#TODO pass type of social media to handler for normalization
-#TODO pass type of social media and if normalization has occured to handler for wall
-#TODO make a spreadsheet output for summary data for the end-user
-#TODO fix issue with youtube harvest/normalization stripping too much of the filename
+#TODO instagram

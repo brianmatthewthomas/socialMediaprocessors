@@ -568,7 +568,7 @@ while True:
             if metadata_creator != "":
                 valuables['agency'] = metadata_creator
             print("starting the process")
-            log = open("logger.txt", "a")
+            log = open("../logger.txt", "a")
             id_list = []
             baseline = valuables[
                            'base_location'] + "/"  # + "/" + valuables['agency'] + "/" + valuables['harvestType'] + "/"
