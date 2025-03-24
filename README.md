@@ -20,11 +20,15 @@ a.	**Note:** FFmpeg is used by yt_dlp to merge an audio-only file and a video-on
 This tool may work directly from the script. It will generate the executable window and from there operate as you otherwise would have. Note that an     executable method was targeted for speed compared to a GUI tool script in a Linux virtual machine, running as a script directly in Windows OS may or may not be slower.
 # Archival/Records Management theory behind this tool
 This tool is based on basic archival/records management practice and should be understood in that context as it explains why it does what it does in the way it does. Specifically, the principle of "a record is a records regardless of format" and record types.
+
 Records can be divided into several types, but here are attributed to two categories: (1) Posts/Public Engagement and (2) Correspondence.
+
 The primary purpose of this tool is to preserve and manage the record of how the account-holder (agency) engaged with the public using common social media platforms. This engagement is through posts (events, albums, and videos are a type of post), which is often classified as a form of outreach for records management/archival purposes. Although comments on posts brings much of the "social" part of social media, the question of whether an individual commenter intended their comment to be preserved in-perpetuity even though it is in a public space is fraught and getting permissions from every commenter for preservation of their comments is not scalable and so will not be extracted for preservation. 
 
 'Correspondence' means an interaction from the public which the account-holder then engages with. This is post comments with account-holder replies and direct messages with replies. The retention period for correspondence for most agencies will be very different from that of their posts, as is the long-term value as evidence of the public engagement of the agency. Thus, while it may be possible to process correspondence with this tool (most platforms but not all are guaranteed), it is not processed by default and if processed it is processed into a separate folder from the posts.
+
 While a social media wall will show posts as a seamless listing, each post is its own distinct record. A complete preservation copy of a given post will include both the text and any media that accompanies it. Thus, a processed social media account will have each post in its own folder with accompanying media. Posts are foldered using the date (YYYY-MM-DD or YYYYMMDD format) and a post identifier (name of video for YouTube). A major organization unit is applied on top of that to reflect associations. For most platforms this will be the year of the post, bot for others this may be 'Albums', 'Events', or a playlist name. For ease of post-processing review, if you check the box, the tool will generate a genericized wall to view the output in one place.
+
 Social media records are inherently electronic records and long-term preservation of electronic records involves format normalization. Normalization, in short, is the converting one set of formats into a standardized version of the same format or an independent format with the aim of long-term sustainability. The standard format for a post is json, but each platform uses its own data standard for its json output. Further, some will include account-holder data while others will not. Long-term this variability will become problematic as platforms themselves may change how it structures the data. While still close in time to the standard for each platform, normalization to common 3rd standard within the json file format is important so that social media can be managed and viewed in its entirety rather than trying to make bespoke renderers and documentation for each version of each platform's json output. Current supported platforms are listed below.
 ## Why not use a harvester tool or api method?
 There are a few reasons to opt for this method over other methods.
@@ -38,6 +42,7 @@ There are a few reasons to opt for this method over other methods.
 
 ### Usage for non-archives
 Ignore and do not check the `Export Metadata?` checkbox. This is for archives to extract metadata from the normalized social media file to enhance access.
+
 Get correspondence checkbox is for you to download correspondence type records. As this is how it is being considered, it is not processed into the same directory as posts. 
 ### Usage notes for archives that aren't TSLAC
 You will need a good text editor to bulk update the exported metadata to whatever standard you choose to use. Metadata is exported using tslac-specific schema details and tslac-specific metadata. This is not configurable within the tool, you will have to modify the script to make changes to how that is done. Or identify what you do not care for and use the text editor to make batch changes.
@@ -48,16 +53,25 @@ This tool works on the premise of downloading account data from a social media c
 Select the social media type to be processed. The tool will load options based upon your selection but the tool used to compile the executable can require a couple of ‘clicks’ to register a change. The load options button prompts the program to make the update. Click on it.
 ### Middle section
 Social media zip file: This is the full filepath to the zip file. YouTube uses a director harvest method so it won’t show up here. This is a text box technically, but you can use the Browse button to navigate to the correct file. Note that the file but be the original download, curated downloaded zip files cannot be processed as the structure will change.
+
 Temporary staging location: This is a full folder path. Use the Browse button or manually enter the path into the text box beside it. If you want to create a new folder navigate to the closest parent folder and in the text box append `/folder_name_of_your_choice` and it will be generated during processing.
+
 Note: Unzipping into the temporary staging folder can take a long time so the system will assume that if there is content in that folder the step has already completed and proceed to the next step. This helps with troubleshooting problems. Don’t use old data.
+
 Target location: This is the folder of the processed social media. If this is a new set, create a new folder. If this is a accretion to an existing social media archive, target the existing folder. It is will only process in the new content
+
 Upload staging: This is the folder where the new posts will be staged for upload. For new social archives it’ll incidentally be everything. For existing archives it should only be the previously unprocessed material. For playlists and albums where there may be accretions to an existing thing that may require some wrangling. It is okay to delete the staging folder only integration into your archive is completed.
+
 TDA upload checkbox: TDA is an acronym for Texas Digital Archive, the digital repository this tool was developed for. Clicking this will trigger json normalization in-situ, exporting metadata for processed posts, and pushing previously unprocessed posts to the target upload folder. If you don’t check this box, the new posts won’t go into upload staging.
+
 Get correspondence: This checkbox will process direct messages and put them into its own folder structure. Correspondence will not be normalized as it is unlikely to be an archival record.
 ### Middle section for YouTube
 The YouTube parameters are a bit different as YouTube is directly harvested. Target location and upload staging will still exist, but the remainder will be different.
+
 Channel url: input the YouTube url for the channel you are going to harvest from, even if not doing a full channel harvest. It can either end with the channel UUID or @channelName
+
 Choose types: All videos will get everything, and will take a while. Generally an entire channel won’t be archival so archives are more likely to choose selected videos
+
 Type checkboxes:
 * Shorts: YouTube short. All of them. Will be processed into a “Shorts” subfolder
 * Lives: YouTube livestreams. Will be processed into its own subfolder but should be a flat folder structure below that
@@ -73,7 +87,9 @@ Export metadata: If checked, after file normalization, the tool will recrawl the
 Generate Wall too?: Checking this will make the tool recrawl the normalized file set, in its entirety including older processed posts, and rework it into a standards html page. This is meant to help a processor review the output and determine if something went wrong. Post text is directly saved into the html file, but pulling up media is highly dependent on keeping the post structure intact. Removing a post folder will media will result in a section of html that will have text but no picture/video/etc.
 ### Lowest section
 Execute: Will start the processing. Once started you cannot stop it with the close button. The X on the upper right-hand will crash the processing as will right-clicking the icon in the tray and selecting close window or using task manager.
+
 Status bar: This is the progress of the current step. For YouTube, the tool being used, youtube_dlp does in-fact have its own progress tracker but in order to utilitze that, it would require many other things to be rendered that were unnecessary. So for YouTube, the status bar will not update until harvesting is completed. The status bar is meant for users to get a quick ideo of how far along the current process it.
+
 Dialog box: Certain steps are useful for monitoring the progress of the overall process, such as what post is being processed. If it crashes, this will be helpful as you can then go to that post to see why it crashed to troubleshoot.
 ## Processor notes
 The output of this tool requires a very standardized structure in the same manner as the input social media platform files. A couple of notes about that:
