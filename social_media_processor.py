@@ -2070,6 +2070,56 @@ def facebook_handler(source_folder=str, target_folder=str):
     return upload_list
 
 def instagram_handler(source_folder=str, target_folder=str):
+    window['-OUTPUT-'].update(f"processing_instagram download\n", append=True)
+    my_precious = f"{source_folder}"
+    valuables = {}
+    valuables['base_location'] = target_folder
+    valuables['source_dir'] = source_folder
+    log = open("logger.txt", "a")
+    id_list = []
+    upload_list = set()
+    baseline = f"{valuables['base_location']}"
+    insta_log = f"{baseline}/log_instagramIDs.txt"
+    if not os.path.isfile(insta_log):
+        create_directory(insta_log)
+        with open(insta_log, "a") as w:
+            window['-OUTPUT-'].update("instagram log file created\n", append=True)
+        w.close()
+    with open(insta_log, 'r') as r:
+        for line in r:
+            id_list.append(line[:-1])
+    r.close()
+    window['-OUTPUT-'].update(f"list of existing posts compiled\n", append=True)
+    window['-OUTPUT-'].update(f"getting user data for posts\n", append=True)
+    id_list2 = []
+    user_data = {}
+    personal_info = f"{baseline}/personal_information/personal_information/personal_information.json"
+    with open(personal_info, "r") as r:
+        filedata = r.read()
+        json_data = json.loads(filedata)
+        user_data['username'] = json_data['profile_user']['string_map_data']['Username']['value']
+        user_data['name'] = json_data['profile_user']['string_map_data']['Name']['value']
+        user_data['email'] = json_data['profile_user']['string_map_data']['Email']['value']
+        user_data['phone_number'] = json_data['profile_user']['string_map_data']['Phone Number']['value']
+        user_data['date_of_birth'] = json_data['profile_user']['string_map_data']['Date of birth']['value']
+        user_data['profile_photo'] = json_data['profile_user']['media_map_data']['Profile Photo']['uri'].split("/")[-1]
+        user_data['profile_photo_timestamp'] = json_data['profile_user']['media_map_data']['Profile Photo']['creation_timestamp']
+    personal_info = f"{baseline}/personal_information/information_about_you/profile_based_in.json"
+    with open(personal_info, 'r') as r:
+        filedata = r.read()
+        json_data = json.loads(filedata)
+        city = json_data['inferred_data_primary_location']['string_map_data']
+        if "City Name" in city.keys():
+            user_data['location'] = city['City Name']['value']
+    post_folder = f"{baseline}/your_instagram_activity/media"
+    insta_files = []
+    for dirpath, dirnames, filenames in os.walk(post_folder):
+        for filename in filenames:
+            if filename.endswith("json") and "profile" not in filename:
+                filename = os.path.join(dirpath, filename)
+                insta_files.append(filename)
+    for insta in insta_files:
+
     print("something")
 
 def normalize_instagram(preservation_directories=list):
