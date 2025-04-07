@@ -392,6 +392,17 @@ def split_facebook_mention(text_block):
     tag_list.sort()
     return tag_list
 
+def split_mention(text_block):
+    tag_list = []
+    text_block = text_block.replace('\n', ' ')
+    my_tags = text_block.split('@')
+    if len(my_tags) > 1:
+        for item in my_tags[1:]:
+            item = item.split(' ')[0]
+            tag_list.append(item)
+    tag_list.sort()
+    return tag_list
+
 def prettify(elem):
     rough_string = ElementTree.tostring(elem, 'utf-8', method='xml')
     try:
@@ -1696,7 +1707,10 @@ def normalization_tags(normalized_json, text_block, platform):
     text_block = text_block.replace("\n", " ")
     linklist = split_url(text_block)
     hashlist = split_hashtag(text_block)
-    mentionlist = split_facebook_mention(text_block)
+    if platform == 'facebook':
+        mentionlist = split_facebook_mention(text_block)
+    else:
+        mentionlist = split_mention(text_block)
     if len(hashlist) > 0 or len(linklist) > 0 or len(mentionlist) > 0:
         normalized_json['tags'] = []
         if len(hashlist) > 0:
@@ -1709,11 +1723,20 @@ def normalization_tags(normalized_json, text_block, platform):
                     normalized_json['tags'].append({'type': "Hashtag",
                                                     'id': f"https://www.youtube.com/hashtag/{hashtag[1:]}",
                                                     'name': hashtag})
-        if len(mentionlist) > 0:
+                if platform == "instagram":
+                    normalized_json['tags'].append({'type': "Hashtag",
+                                                    'id': f"https:///www.instagram.com/hashtag/{hashtag[1:]}",
+                                                    'name': hashtag})
+        if len(mentionlist) > 0 and platform == 'facebook':
             for mention in mentionlist:
                 normalized_json['tags'].append({'type': 'Mention',
                                                 'id': mention.split(":")[0][1:],
                                                 'name': mention.split(":")[-1]})
+        if len(mentionlist) > 0 and platform != 'facebook':
+            for mention in mentionlist:
+                normalized_json['tags'].append({'type': 'Mention',
+                                                'id': f"https://www.{platform}.com/{mention}",
+                                                'name': mention})
         if len(linklist) > 0:
             for linky in linklist:
                 normalized_json['tags'].append({'type': 'Link',
@@ -2071,7 +2094,6 @@ def facebook_handler(source_folder=str, target_folder=str):
 
 def instagram_handler(source_folder=str, target_folder=str):
     window['-OUTPUT-'].update(f"processing_instagram download\n", append=True)
-    my_precious = f"{source_folder}"
     valuables = {}
     valuables['base_location'] = target_folder
     valuables['source_dir'] = source_folder
@@ -2089,29 +2111,29 @@ def instagram_handler(source_folder=str, target_folder=str):
         for line in r:
             id_list.append(line[:-1])
     r.close()
-    window['-OUTPUT-'].update(f"list of existing posts compiled\n", append=True)
     window['-OUTPUT-'].update(f"getting user data for posts\n", append=True)
     id_list2 = []
     user_data = {}
-    personal_info = f"{baseline}/personal_information/personal_information/personal_information.json"
+    personal_info = f"{source_folder}/personal_information/personal_information/personal_information.json"
     with open(personal_info, "r") as r:
         filedata = r.read()
         json_data = json.loads(filedata)
-        user_data['username'] = json_data['profile_user']['string_map_data']['Username']['value']
-        user_data['name'] = json_data['profile_user']['string_map_data']['Name']['value']
-        user_data['email'] = json_data['profile_user']['string_map_data']['Email']['value']
-        user_data['phone_number'] = json_data['profile_user']['string_map_data']['Phone Number']['value']
-        user_data['date_of_birth'] = json_data['profile_user']['string_map_data']['Date of birth']['value']
-        user_data['profile_photo'] = json_data['profile_user']['media_map_data']['Profile Photo']['uri'].split("/")[-1]
-        user_data['profile_photo_timestamp'] = json_data['profile_user']['media_map_data']['Profile Photo']['creation_timestamp']
-    personal_info = f"{baseline}/personal_information/information_about_you/profile_based_in.json"
+        user_data['username'] = json_data['profile_user'][0]['string_map_data']['Username']['value']
+        user_data['name'] = json_data['profile_user'][0]['string_map_data']['Name']['value']
+        user_data['email'] = json_data['profile_user'][0]['string_map_data']['Email']['value']
+        user_data['phone_number'] = json_data['profile_user'][0]['string_map_data']['Phone Number']['value']
+        user_data['date_of_birth'] = json_data['profile_user'][0]['string_map_data']['Date of birth']['value']
+        user_data['profile_photo'] = json_data['profile_user'][0]['media_map_data']['Profile Photo']['uri'].split("/")[-1]
+        user_data['profile_photo_timestamp'] = json_data['profile_user'][0]['media_map_data']['Profile Photo']['creation_timestamp']
+    personal_info = f"{source_folder}/personal_information/information_about_you/profile_based_in.json"
     with open(personal_info, 'r') as r:
         filedata = r.read()
         json_data = json.loads(filedata)
-        city = json_data['inferred_data_primary_location']['string_map_data']
+        city = json_data['inferred_data_primary_location'][0]['string_map_data']
         if "City Name" in city.keys():
             user_data['location'] = city['City Name']['value']
-    post_folder = f"{baseline}/your_instagram_activity/media"
+    print(user_data)
+    post_folder = f"{source_folder}/your_instagram_activity/media"
     insta_files = []
     for dirpath, dirnames, filenames in os.walk(post_folder):
         for filename in filenames:
@@ -2119,10 +2141,185 @@ def instagram_handler(source_folder=str, target_folder=str):
                 filename = os.path.join(dirpath, filename)
                 insta_files.append(filename)
     for insta in insta_files:
-
+        with open(insta, 'r') as r:
+            filedata = r.read()
+            json_data = json.loads(filedata)
+            total = len(json_data)
+            counter = 0
+            for post in json_data:
+                post['user'] = user_data
+                if "creation_timestamp" in post.keys():
+                    timestamp = post['creation_timestamp']
+                else:
+                    "creation_timestamp" in post['media'][0].keys()
+                    timestamp = post['media'][0]['creation_timestamp']
+                timestamp_translated = str(datetime.datetime.fromtimestamp(timestamp))
+                post_id = f"{str(timestamp_translated)[:10]}_{str(timestamp)}"
+                if post_id not in id_list:
+                    counter2 = 0
+                    while post_id in id_list2:
+                        if post_id.endswith(f"-{str(counter2)}"):
+                            post_id = post_id[:-2]
+                        counter2 += 1
+                        post_id = f"{post_id}-{str(counter2)}"
+                    post['post_id'] = post_id
+                    filepath = f"{baseline}/backlog/{post_id[:4]}/{post_id}"
+                    filename = f"{post_id}.txt"
+                    master_post = f"{filepath}/{filename}"
+                    create_directory(master_post)
+                    master_post_text = json.loads(json.dumps(post))
+                    with open(master_post, 'w') as w:
+                        json.dump(master_post_text, w)
+                    w.close()
+                    os.rename(master_post, f"{master_post[:-3]}json")
+                    if "media" in post.keys():
+                        for media in post['media']:
+                            source_media = f"{source_folder}/{media['uri']}"
+                            target_media = f"{filepath}/{media['uri'].split('/')[-1]}"
+                            if not os.path.isfile(target_media):
+                                shutil.copy2(source_media, target_media)
+                                shutil.copystat(source_media, target_media)
+                                if "media_metadata" in media.keys():
+                                    if "video_metadata" in media['media_metadata'].keys():
+                                        if "subtitles" in media['media_metadata']['video_metadata'].keys():
+                                            source_media = f"{source_folder}/{media['media_metadata']['video_metadata']['subtitles']['uri']}"
+                                            target_media = f"{filepath}/{source_media.split('/')[-1]}"
+                                            shutil.copy(source_media, target_media)
+                                            shutil.copystat(source_media, target_media)
+                    counter += 1
+                    window['-Progress-'].update_bar(counter, total)
+                    window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
+                    id_list2.append(post_id)
+                    upload_list.add(filepath)
+    id_list2.sort()
+    with open(insta_log, 'a') as w:
+        for item in id_list2:
+            w.write(f"{item}\n")
+    w.close()
     print("something")
+    upload_list = list(upload_list)
+    upload_list.sort()
+    return upload_list
 
-def normalize_instagram(preservation_directories=list):
+def instagram_correspondence(source_folder, target_folder):
+    target_folder = f"{target_folder}/correspondence"
+    correspondence_source = f"{source_folder}/your_instagram_activity/messages"
+    for dirpath, dirnames, filename in os.walk(correspondence_source):
+        for filename in filenames:
+            filename1 = os.path.join(dirpath, filename)
+            filename2 = filename1.replace(correspondence_source, target_folder)
+            create_directory(filename2)
+            shutil.copy2(filename1, filename2)
+            shutil.copystat(filename1, filename2)
+            window['-OUTPUT-'].update(f"processed correspondence {filename1}\n", append=True)
+    window['-OUTPUT-'].update(f"finished processing instagram correspondence")
+    print("something")
+def normalize_instagram_activityStream(preservation_directories=list):
+    window['-OUTPUT-'].update("getting count for things to normalize progress bar\n", append=True)
+    master_count = 0
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(preservation_directory):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    master_count += 1
+    current_count = 0
+    for preservation_directory in preservation_directories:
+        for dirpath, dirnames, filenames in os.walk(preservation_directory):
+            for filename in filenames:
+                if filename.endswith(".json"):
+                    filename = os.path.join(dirpath, filename)
+                    print(filename)
+                    window['-OUTPUT-'].update("Working on {filename}\n", append=True)
+                    # clear any existing normalized json data by switchin data types and switching back
+                    normalized_json = 0
+                    normalized_json = {}
+                    with open(filename, "r") as r:
+                        filedata = r.read()
+                        json_data = json.loads(filedata)
+                        normalized_json['@context'] = ["https://www.w3.org/ns/activitystreams"]
+                        normalized_json['@context'].append({'exif': 'http://www.w3.org/2003/12/exif/ns',
+                                                            'instagram': 'https://www.instagram.com',
+                                                            'dcterms': 'http://purl.org/dc/terms/'})
+                        normalized_json['context'] = "Instagram"
+                        normalized_json['id'] = json_data['post_id']
+                        # set default type value to note
+                        normalized_json['type'] = "Note"
+                        normalized_json['actor'] = []
+                        normalized_json['actor'].append({'type': 'Instagram account',
+                                                         "id": json_data['user']['username'],
+                                                         'url': f"https://www.instagram.com/{json_data['user']['username']}",
+                                                         'name': json_data['user']['name'],
+                                                         'location': {'type': 'Place', 'name': json_data['user']['location']},
+                                                         'instagram:profile_photo': json_data['user']['profile_photo'],
+                                                         'instagram:profile_photo_timestamp': json_data['user']['profile_photo_timestamp'],
+                                                         'instagram:phone_number': json_data['user']['phone_number'],
+                                                         'instagram:email': json_data['user']['email']})
+                        normalized_json['published'] = str(datetime.datetime.fromtimestamp(int(json_data['post_id'].split('_')[-1])))
+                        text_block = ""
+                        if "title" in json_data.keys():
+                            normalized_json['content'] = json_data['title']
+                            normalized_json['summary'] = json_data['title']
+                            text_block = f"{text_block} {json_data['title']}"
+                        if "media" in json_data.keys():
+                            normalized_json['attachments'] = []
+                            medias = json_data['media']
+                            if len(medias) > 1:
+                                normalized_json['type'] = "Collection"
+                            for media in medias:
+                                # reset short dictionary to remove hangers on
+                                short_dictionary = 0
+                                short_dictionary = {}
+                                short_dictionary = {'type': 'Media',
+                                                    'url': media['uri'].split('/')[-1],
+                                                    'dcterms:date.created': str(datetime.datetime.fromtimestamp(media['creation_timestamp'])),
+                                                    'content': media['title']}
+                                text_block = f"{text_block} {media['title']}"
+                                video = ['avi', 'mov', 'mp4', 'webm']
+                                audio = ['wav', 'mp3']
+                                image = ['jpg', 'tif', 'webp']
+                                if "." in short_dictionary['url']:
+                                    typo = short_dictionary['url'].split('.')[-1]
+                                    if typo in video:
+                                        short_dictionary['mediaType'] = f"video/{typo}"
+                                        short_dictionary['type'] = "Video"
+                                    if typo in audio:
+                                        short_dictionary['mediaType'] = f"audio/{typo}"
+                                        short_dictionary['type'] = 'Audio'
+                                    if typo in image:
+                                        short_dictionary['mediaType'] = f"image/{typo}"
+                                        short_dictionary['type'] = 'Image'
+                                subtitle_flag = False
+                                if "cross_post_source" in media.keys():
+                                    if "source_app" in media['cross_post_source'].keys():
+                                        short_dictionary['instagram:source_app'] = media['cross_post_source']['source_app']
+                                if "media_metadata" in media.keys():
+                                    if "camera_metadata" in media['media_metadata'].keys():
+                                        if "has_camera_metadata" in media['media_metadata']['camera_metadata'].keys():
+                                            short_dictionary['instagram:has_camera_metadata'] = media['media_metadata']['camera_metadata']['has_camera_metadata']
+                                    if "video_metadata" in media['media_metadata'].keys():
+                                        if "subtitles" in media['media_metadata']['video_metadata'].keys():
+                                            subtitle_flag = True
+                                        if "exif_data" in media['media_metadata']['video_metadata'].keys():
+                                            for item in media['media_metadata']['video_metadata']['exif_data']:
+                                                for key in item.keys():
+                                                    short_dictionary[f'exif:{key}'] = item[key]
+                                normalized_json['attachments'].append(short_dictionary)
+                                if subtitle_flag is True:
+                                    short_dictionary = 0
+                                    short_dictionary = {}
+                                    short_dictionary = {'type': 'Subtitle',
+                                                        'url': media['uri'].split('/')[-1],
+                                                        'dcterms:date.created': str(datetime.datetime.fromtimestamp(media['creation_timestamp'])),
+                                                        'mediaType': 'text/srt'}
+                                    normalized_json['attachments'].append(short_dictionary)
+                        normalized_json = normalization_tags(normalized_json, text_block, 'instagram')
+                        with open(filename, 'w') as w:
+                            json.dump(normalized_json, w)
+                        w.close()
+                        window['-OUTPUT-'].update(f"normalized {filename}\n", append=True)
+                        current_count += 1
+                        window['-Progress-'].update_bar(current_count, master_count)
+    window['-OUTPUT-'].update(f"normalized for instagram data complete\n", append=True)
     print("something else")
 
 layout = [
@@ -2455,14 +2652,13 @@ while True:
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
             if values['-TYPE_instagram-'] is True:
                 window['-OUTPUT-'].update(f"Starting processing instagram account data\n", append=True)
-                # send the whole deal to the twitter handler and get back a list of twitter data to deal with
+                extract_social_archive(target_file, source_folder)
                 upload_list = instagram_handler(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
-                    extract_social_archive(target_file, source_folder)
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
                     # send list of folders to be normalized to normalization handler
-                    normalize_instagram(preservation_directories)
+                    normalize_instagram_activityStream(preservation_directories)
                     if values['-METADATA-'] is True:
                         window['-OUTPUT-'].update(f"starting metadata generation\n", append=True)
                         make_metadata2(preservation_directories, "Instagram", collectionName, metadata_creator)
@@ -2480,6 +2676,8 @@ while True:
                         upload_folder = f"{target_folder}_upload"
                     make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
+                if values['-GET_correspondence-'] is True:
+                    instagram_correspondence(source_folder, target_folder)
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",
                                       font=("Calibri", "12", "bold"))

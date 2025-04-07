@@ -10,8 +10,9 @@ This repository has paradigms specific to the Texas State Library and Archives C
 
 ## Instructions for compiling the executable
 1.	Install all dependencies. These are PySimpleGUI, zipfile, os, datetime, json, hashlib, shutil, sys, requests, xml, errno, yt_dlp. Ensure you are installing yt_dlp and not yt_dl; yt_dl had a couple of issues that could not be resolved for the purpose of this project.
-2.	Ensure ffmpeg is installed on your computer and is on the system path. This is specifically for YouTube handling. If it isn't and you can't get it installed or get it installed but can't get it to work with this tool, then you should be able to run this tool using the following method: Get FFmpeg as an executable for command-line use by going to `https://www.gyan.dev/ffmpeg/builds/` and downloading the latest full release. Unzip the folder and drop the twitter_backlog_gui executable into the `/bin` subfolder of ffmpeg. Navigate to that `/bin` folder and dooooooooooooooooooooooooooooouble-click on the twitter backlog gui to get it running.
-a.	**Note:** FFmpeg is used by yt_dlp to merge an audio-only file and a video-only file from YouTube and merge them. The two files are deleted after the merger takes place. If you do not run this executable with FFmpeg the step will not complete and you will be left with the audio-only and the video-only files.
+2.	Ensure ffmpeg is installed on your computer and is on the system path. This is specifically for YouTube handling. If it isn't and you can't get it installed or get it installed but can't get it to work with this tool, then you should be able to run this tool using the following method: Get FFmpeg as an executable for command-line use by going to `https://www.gyan.dev/ffmpeg/builds/` and downloading the latest full release. Unzip the folder and drop the twitter_backlog_gui executable into the `/bin` subfolder of ffmpeg. Navigate to that `/bin` folder and double-click on the social media processor to get it running.
+
+   * **Note:** FFmpeg is used by yt_dlp to merge an audio-only file and a video-only file from YouTube and merge them. The two files are deleted after the merger takes place. If you do not run this executable with FFmpeg the step will not complete and you will be left with the audio-only and the video-only files.
 
 3.	Run pyinstaller (should have come bundled with PySimpleGUI but if it didn't go install it) using a command like `pyinstaller -wF [filepath to the backlog_gui script]`. It'll take a little bit of time to compile. If something goes wrong and you need to retry, make sure to delete the contents of the `/build` subfolder or else you'll just carry the problem to the next attempt.
 4.	Get the compiled executable from the `/dist` directory and drop it wherever. Remember the question of FFmpeg in step 2.
@@ -111,4 +112,4 @@ Instructions forthcoming
 ## Facebook
 Instructions forthcoming
 ## Instagram
-Tool development for this and instructions forthcoming
+Instructions forthcoming
