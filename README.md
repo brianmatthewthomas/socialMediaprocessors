@@ -115,17 +115,21 @@ To export Facebook content you will need login access to the account. The follow
 2. Go to the upper right-hand corner and click on the user profile picture
 
 ![](./directions_media/facebook_userSettings.jpg)
+
 3. Click on "Settings & privacy"
 4. Click on "Settings"
 
 ![](./directions_media/facebook_settings.jpg)
+
 5. Click on the "See more in Accounts Center" in the far-left column
 
 ![](./directions_media/instagram_accountsCenter.jpg)
+
 6. Follow steps 5-7 for Instagram
 7. Hit the checkbox for the facebook account and click on next
 
 ![](./directions_media/facebook_downloadSelection.jpg)
+
 8. Follow steps 9-13 for instagram
 ## Instagram
 To export Instagram content you will need login access to the account. The following directions are for a individual account. Institutional accounts should be the same, but if not the gist will be similar.
@@ -133,20 +137,25 @@ To export Instagram content you will need login access to the account. The follo
 2. Go to the bottom left-hand "More" three dashes icon and click on it
 
 ![](./directions_media/instagram_start.jpg)
+
 3. In the pop-up menu (opens directly above the "More"), click on "Settings"
 4. In the middle column on the top should be an Accounts Center box, Click on "See more in Accounts Center"
 
 ![](./directions_media/instagram_accountsCenter.jpg)
+
 5. On the next screen, click on "Your information and permissions" on the left-hand column
 
 ![](./directions_media/instagram_yourAccount.jpg)
+
 6. The center screen will change, click on "Download your information"
 7. If you've requested a download recently, it will show up here. If not, click on "Download or transfer information"
 
 ![](./directions_media/instagram_download.jpg)
+
 8. Hit the checkbox for the instagram account and click on next
 
 ![](./directions_media/instagram_downloadSelection.jpg)
+
 9. Choose "All available information"
 10. Choose Download to device (this will generate the zip file for transfer)
 11. Make the following selections and then hit "Create files"
@@ -156,6 +165,7 @@ To export Instagram content you will need login access to the account. The follo
     * Media quality: High
 
 ![](./directions_media/instagram_downloadFinal.jpg)
+
 12. The account download generation process will start and you will be notified when it is ready via the selected email address. You may need to navigate back to the Download screen to access it
 13. Download the zip file for transfer to the State Archives
 
