@@ -1121,7 +1121,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                 if current_media['type'] == "photo":
                                     mini_dict['type'] = "Image"
                                     mini_dict['url'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
-                                    mini_dict['mediaType'] = f"image/{mini_dict['uri'].split('.')[-1]}"
+                                    mini_dict['mediaType'] = f"image/{mini_dict['url'].split('.')[-1]}"
                                     mini_dict['id'] = current_media['id_str']
                                     normalized_json['attachments'].append(mini_dict)
                                 if current_media['type'] == "video":
@@ -1213,10 +1213,10 @@ def twitter_correspondence(source_folder=str, target_folder=str):
     direct_mesage_file = f"{source_folder}/data/direct-messages.js"
     with open(direct_mesage_file, "r") as r:
         json_data = r.read()
-        json_data = json_data.replace('window.YTD.direct-messages.part0 = [\n ', '').replace('\n]', '')
+        json_data = json_data.replace('window.YTD.direct_messages.part0 = [\n ', '[').replace('\n]', ']')
         json_data = json.loads(json_data)
         for direct_message in json_data:
-            key_data = direct_message['dmConversation']['messages'][-1]
+            key_data = direct_message['dmConversation']['messages'][-1]['messageCreate']
             message_date = key_data['createdAt'][:10]
             conversation_id = direct_message['dmConversation']['conversationId']
             message_name = f"{message_date}_{conversation_id}"
@@ -1749,7 +1749,7 @@ def normalization_tags(normalized_json, text_block, platform):
 # facebook correspondence handler
 def facebook_correspondence(source_folder=str, target_folder=str):
     target_folder = f"{target_folder}/correspondence"
-    correspondence_source = f"{source_folder}/this_profile's_activity_across_facebook/"
+    correspondence_source = f"{source_folder}/this_profile's_activity_across_facebook/messages"
     for dirpath, dirnames, filenames in os.walk(correspondence_source):
         for filename in filenames:
             if filename.endswith(".json"):
@@ -2146,6 +2146,9 @@ def instagram_handler(source_folder=str, target_folder=str):
             json_data = json.loads(filedata)
             total = len(json_data)
             counter = 0
+            if isinstance(json_data, dict):
+                if "ig_reels_media" in json_data.keys():
+                    json_data = json_data['ig_reels_media']
             for post in json_data:
                 post['user'] = user_data
                 if "creation_timestamp" in post.keys():
@@ -2204,7 +2207,7 @@ def instagram_handler(source_folder=str, target_folder=str):
 def instagram_correspondence(source_folder, target_folder):
     target_folder = f"{target_folder}/correspondence"
     correspondence_source = f"{source_folder}/your_instagram_activity/messages"
-    for dirpath, dirnames, filename in os.walk(correspondence_source):
+    for dirpath, dirnames, filenames in os.walk(correspondence_source):
         for filename in filenames:
             filename1 = os.path.join(dirpath, filename)
             filename2 = filename1.replace(correspondence_source, target_folder)
@@ -2229,7 +2232,7 @@ def normalize_instagram_activityStream(preservation_directories=list):
                 if filename.endswith(".json"):
                     filename = os.path.join(dirpath, filename)
                     print(filename)
-                    window['-OUTPUT-'].update("Working on {filename}\n", append=True)
+                    window['-OUTPUT-'].update(f"Working on {filename}\n", append=True)
                     # clear any existing normalized json data by switchin data types and switching back
                     normalized_json = 0
                     normalized_json = {}
@@ -2495,7 +2498,7 @@ while True:
         window['-youtube_date_end-'].update(visible=True)
         window['-youtube_GetComments-'].update(visible=True)
         window['-GET_correspondence-'].update(visible=False)
-    if values['-TYPE_twitter-'] is True or values['-TYPE_facebook_page-'] is True:
+    if values['-TYPE_twitter-'] is True or values['-TYPE_facebook_page-'] is True or values['-TYPE_instagram-'] is True:
         window['-File-'].update(visible=True)
         window['-File_Label-'].update(visible=True)
         window['-File_Browse-'].update(visible=True)
@@ -2599,8 +2602,6 @@ while True:
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
                 my_source = f"{source_folder}/{target_file.split('/')[-1][:-4]}"
                 upload_list = tweet_handler(my_source, target_folder)
-                if values['-GET_correspondence-'] is True:
-                    twitter_correspondence(source_folder, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
                     preservation_directories = create_preservation(target_folder)
@@ -2614,6 +2615,8 @@ while True:
                         window['-OUTPUT-'].update(f"creating wall\n", append=True)
                         create_wall(target_folder)
                         window['-OUTPUT-'].update(f"wall generated\n", append=True)
+                if values['-GET_correspondence-'] is True:
+                    twitter_correspondence(my_source, target_folder)
                 if values['-UPLOAD-'] is True:
                     window['-OUTPUT-'].update(f"beginning to create upload directories and files\n", append=True)
                     if values['-UploadStaging-'] != "":
@@ -2641,6 +2644,8 @@ while True:
                         window['-OUTPUT-'].update(f"creating wall\n", append=True)
                         create_wall(target_folder)
                         window['-OUTPUT-'].update(f"wall generated\n", append=True)
+                if values['-GET_correspondence-'] is True:
+                    facebook_correspondence(source_folder, target_folder)
                 if values['-UPLOAD-'] is True:
                     window['-OUTPUT-'].update(f"beginning to create upload directories and files\n",
                                               append=True)
@@ -2667,6 +2672,8 @@ while True:
                         window['-OUTPUT-'].update(f"creating wall\n", append=True)
                         create_wall(target_folder)
                         window['-OUTPUT-'].update(f"wall generated\n", append=True)
+                if values['-GET_correspondence-'] is True:
+                    instagram_correspondence(source_folder, target_folder)
                 if values['-UPLOAD-'] is True:
                     window['-OUTPUT-'].update(f"beginning to create upload directories and files\n",
                                               append=True)
