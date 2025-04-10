@@ -108,7 +108,26 @@ If there is a platform not currently supported you think would be useful please 
 # Getting your data
 Specific instructions by platform on how to export your data. These are good as of the last attempt by the project creator. If the process changes let the author know.
 ## Twitter/X
-Instructions forthcoming
+As of the time of this writing, a user can only export from X.com as twitter.com no longer exists. TSLAC is happy to accept existing twitter account downloads. So...in X
+1. Login
+2. Go to the bottom  left-hand corner under the more button
+
+![](./directions_media/twitter_start.jpg)
+
+3. Click on it, then click on "Settings and privacy"
+
+![](./directions_media/twitter_settings.jpg)
+
+4. A new page will show up. Under "Your account" click on "Download an archive of your data"
+
+![](./directions_media/twitter_settings_download.jpg)
+
+5. You will be prompted to re-enter the account password, enter that. You will also be prompted to do two-factor authentication through email of text message. Choose the best option for your needs.
+6. From here, click on the "Request archive" button
+
+![](./directions_media/twitter_request_download.jpg)
+
+7. You will receive an email notice when the account download becomes available. Follow the directions to do that.
 ## Facebook
 To export Facebook content you will need login access to the account. The following directions are based upon an individual account, the method for a institutional page are likely to be the same or similar
 1. Login

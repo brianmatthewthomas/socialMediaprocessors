@@ -1198,8 +1198,6 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                         mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
                                     mini_dict['preview'] = preview
                                     normalized_json['attachments'].append(mini_dict)
-                        normalized_json = normalization_tags(normalized_json, content_text, "twitter")
-
                         with open(filename, 'w') as w:
                             json.dump(normalized_json, w)
                         w.close()
@@ -1257,14 +1255,24 @@ def tweet_handler(source_folder, target_folder):
     upload_list = set()
     my_precious = f'{source_folder}/data/tweet.js'
     my_data = f'{source_folder}/data'
+    extracted_flag = False
     if os.path.isfile(my_precious):
         window['-OUTPUT-'].update("twitter archive already extracted, moving on\n", append=True)
-    if not os.path.isfile(my_precious):
+        extracted_flag = True
+    elif os.path.isfile(f'{source_folder}/data/tweets.js'):
+        window['-OUTPUT-'].update("X archive already extracted, moving on\n", append=True)
+        extracted_flag = True
+        my_precious = f'{source_folder}/data/tweets.js'
+    elif extracted_flag is False:
         window['-OUTPUT-'].update("extracting twitter archive for manipulation...go get a drink this will take some time\n", append=True)
         crazy = zipfile.ZipFile(target_file)
         crazy.extractall(source_folder)
     window['-OUTPUT-'].update("processing tweets...\n", append=True)
     window['-OUTPUT-'].update("Go get a cup of coffee, you deserve it and this may take a while\n", append=True)
+    if not os.path.isfile(my_precious):
+        my_precious = f'{source_folder}/data.tweet.js'
+    if not os.path.isfile(my_precious):
+        window['-OUTPUT-'].update(f"something wrong with extracting {source_folder}, check it out\n", append=True)
     valuables = {}
     valuables['source_dir'] = my_data
     valuables['base_location'] = target_folder
@@ -1310,6 +1318,8 @@ def tweet_handler(source_folder, target_folder):
         json_data = backlog.read()
         if "window.YTD.tweet.part0 = " in json_data:
             json_data = json_data.replace("window.YTD.tweet.part0 = ", "")
+        if "window.YTD.tweets.part0 = " in json_data:
+            json_data = json_data.replace("window.YTD.tweets.part0 = ", "")
         twitter = json.loads(json_data)
         counter = 0
         for tweet in twitter:
@@ -2600,7 +2610,11 @@ while True:
                 extract_social_archive(target_file, source_folder)
                 window['-OUTPUT-'].update(f"Starting processing twitter account data\n", append=True)
                 # send the whole deal to the twitter handler and get back a list of twitter data to deal with
-                my_source = f"{source_folder}/{target_file.split('/')[-1][:-4]}"
+                my_test = f"{source_folder}/{target_file.split('/')[-1][:-4]}/Your archive.html"
+                if os.path.isfile(my_test):
+                    my_source = f"{source_folder}/{target_file.split('/')[-1][:-4]}"
+                if os.path.isfile(f"{source_folder}/Your archive.html"):
+                    my_source = source_folder
                 upload_list = tweet_handler(my_source, target_folder)
                 if values['-NORMALIZE-'] is True:
                     # tap into foldering rules and assume that anything not put into standard structure needs normalization
