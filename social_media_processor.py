@@ -14,8 +14,231 @@ from xml.etree.ElementTree import Element, SubElement
 from collections import OrderedDict
 import errno
 import yt_dlp
+import warcit
+import subprocess
+import gzip
 
 my_icon = b'iVBORw0KGgoAAAANSUhEUgAAAWQAAAFkCAMAAAAgxbESAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAACvlBMVEUAwAAEwQQmySZH0kdn2WeG4Yai6KK17bXI8cjb9tvu++70/PT///9m2WZG0UYlySUFwQU4zjhw3HCf55/N8834/fj3/ffM8sye5543zjcDwQM7zzuD4IPC8ML2/fbB8MGC4II6zjoMwwxY1lip6qnt++2o6qhX1VcLwwsGwQZS1FKr6qv1/fVR1FGI4ojo+eiR5JEryytE0US37bf+//627bZD0UNc11zQ89DP889Z1lkCwAIBwAFN003W9dZe117O885A0EAexx6z7LMiyCJ/339833w5zjnU9NTT9NOK4or9//38/vwoyijS9NItyy1h2GEHwgeZ5pkZxhnH8cfF8cUXxhfg9+Dk+OQvzC/v++/y/PJI0khO0075/vlU1VRa1lr7/vtg2GBl2WVk2WRd111i2GJW1VZB0EEqyirx/PHf99/E8MSY5piT5JMpyiknyifK8srh+OGS5JLi+OJV1VWv668Nww2x7LGQ5JCA4IB63nojySPj+OPl+eUgyCCw67Cq6qpC0EI/0D+U5ZTL8stK0kpQ1FAkySQOww5F0UW47bi07LSW5ZaJ4omF4YXn+edj2GPm+eas6qyy7LKm6abq+upu226l6aVJ0kmV5ZXr+us2zTZ+33697701zTWg6KCd552H4YeE4YTd993a9trw+/DD8MOh6KFy3HK17LUMwgy87rwPxA9M00wKwgq77rsSxBIQxBAUxRQfyB+57rkhyCHp+uksyywuyy7c9twzzTNv2288zzzZ9tkbxxts22wJwgl33Xe67rrG8cYdxx36/vqB4IHs+ux23XZ13XWb5psWxRZL00sVxRV73nve996t6619330TxRN43nij6KNz3HNq2mqk6aQRxBE0zTTJ8sl03XTR9NE9zz1T1VNf11/z/PMyzDJo2miP448+zz6X5ZcwzDAcxxyc55xsx1JfAAAAAWJLR0QMgbNRYwAAAAd0SU1FB+gKGAksMPnnNBMAAAxaSURBVHja7d39XxTHHQfwQwX1btDTiERQVKIBDCKxJz4cGg1YTThMQDE+VAgqiSiJ+EARCRqtj422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'
+
+def make_access_warc(upload_folder):
+    upload2 = f"{upload_folder}_access"
+    for dirpath, dirnames, filenames in os.walk(upload_folder):
+        for filename in filenames:
+            if filename.endswith(".json"):
+                if "preservation2" in dirpath:
+                    json_filename = os.path.join(dirpath, filename)
+                    html_filename = f"{json_filename[:-4]}html"
+                    window['-OUTPUT-'].update(f"processing {json_filename} for access warc\n", append=True)
+                    # load the json file for processing into a temporary html page
+                    with open(json_filename) as r:
+                        filedata = r.read()
+                        post = json.loads(filedata)
+                        platform = post['context']
+                        post_type = post['type']
+                        if post_type == "Collection":
+                            if platform == "YouTube":
+                                post_type = "Playlist"
+                            if platform == "Facebook":
+                                post_type = "Album"
+                        post_type = post_type.replace("Note", "Post")
+                        date = ""
+                        opts = ['published', 'updated']
+                        for item in opts:
+                            if item in post.keys():
+                                date = post[item][:10]
+                        if date == "":
+                            date = "Undated"
+                        post_dict = {'created_at': date,
+                                     'name': post['actor'][0]['name'],
+                                     'username': post['actor'][0]['id'],
+                                     'user_url': f"{platform}: {post['actor'][0]['url']}",
+                                     'post_id': post['id'],
+                                     'text': "",
+                                     'url': f"{platform}: {post['actor'][0]['name']}, {post_type} id {post['id']}"}
+                        if "content" in post.keys():
+                            post_dict['text'] = post['content']
+                        engagement_text = ""
+                        if "engagement" in post.keys():
+                            for item in post['engagement']:
+                                engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
+                        summary = ""
+                        if "summary" in post.keys():
+                            summary = post['summary']
+                        media_string = ""
+                        if "preview" in post.keys():
+                            preview_caption = ""
+                            if "name" in post['preview'].keys():
+                                preview_caption = f"<br/>{post['preview']['name']}<br/>"
+                            media_string = f'{media_string}<div><img class="post-photo" src="{post["preview"]["href"]}"/>{preview_caption}</div>'
+                        if "attachments" in post.keys():
+                            for x in post['attachments']:
+                                attachment_caption = ""
+                                attachment_title = ""
+                                if "title" in x.keys():
+                                    attachment_title = f"{x['title']}<br/>"
+                                if "description" in x.keys():
+                                    attachment_caption = f"<br/>{x['description']}"
+                                if x['type'] == "Image":
+                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
+                                if x['type'] == "Video":
+                                    thumbnail = ""
+                                    if "preview" in x.keys():
+                                        thumbnail = os.path.join(dirpath, f'{x["preview"]["url"]["href"]}')
+                                    media_extension = x['url'].split(".")[-1]
+                                    media_file = os.path.join(dirpath, x['url'])
+                                    if thumbnail == "":
+                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                    if thumbnail != "":
+                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                        if post['type'] == "Collection":
+                            media_string = f'{media_string}<div>Item is a video playlist of album, see below for attached items. There are {str(post["totalitems"])} items.</div>'
+                            for x in post['items']:
+                                attachment_caption = ""
+                                attachment_title = ""
+                                if "title" in x.keys():
+                                    attachment_title = f"{x['title']}<br/>"
+                                if "description" in x.keys():
+                                    attachment_caption = f"<br/>{x['description']}"
+                                if x['type'] == "Image":
+                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
+                                if x['type'] == "Video":
+                                    thumbnail = ""
+                                    if "preview" in x.keys():
+                                        thumbnail = os.path.join(dirpath, f'{x["preview"]["url"]["href"]}')
+                                    media_extension = x['url'].split(".")[-1]
+                                    media_file = os.path.join(dirpath, x['url'])
+                                    if thumbnail == "":
+                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                    if thumbnail != "":
+                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                        post_head_html = '''<html>
+                            <head>
+                                <meta charset="utf-8">
+                                    <title>Post adapted from Wall originally adapted from the twarc concept</title>
+                                    <style>
+                                     body {
+                                        font-family: Arial, Helvetica, sans-serif;
+                                        font-size: 12pt;
+                                        margin-left: auto;
+                                        margin-right: auto;
+                                        width: 95%;
+                                     }
+                                     article.post {
+                                        position: relative;
+                                        float: left;
+                                        border: thin #eeeeee solid;
+                                        margin: 10px;
+                                        width: 600px;
+                                        padding: 10px;
+                                        display: block;
+                                     }
+                                     .name {
+                                        font-weight: bold;
+                                     }
+                                     .post footer {
+                                        bottom: 5px;
+                                        left: 10px;
+                                        font-size: smaller;
+                                     }
+                                     .post a {
+                                        text-decoration: none;
+                                     }
+                                     .post .text {
+                                        overflow: auto;
+                                     }
+                                     footer#page {
+                                        margin-top: 15px;
+                                        clear: both;
+                                        width: 100%;
+                                        text-align: center;
+                                        font-size: 20pt;
+                                        font-weight: heavy;
+                                     }
+                                     header {
+                                        text-align: center;
+                                        margin-bottom: 20px;
+                                     }
+                                     .post-photo, .post-video {
+                                        max-width: 90%;
+                                        padding-left: 5%;
+                                     }
+                                     .left {
+                                        width: 30%;
+                                        float: left;
+                                        height: 100%;
+                                        display: table-cell;
+                                        text-align: center;
+                                     }
+                                     .avatar-column {
+                                        width: 50%;
+                                    }
+                                    </style>
+                                </head>
+                                <body>
+'''
+                        post_foot_html = '''</div>
+                        </div>
+                        <footer id="page">
+                            <hr/>
+                            <br/>
+                            Adapted from wall generation tool at <a href="https://github.com/DocNow/twarc">twarc</a>.
+                            <br/>
+                            <br/>
+                        </footer>
+                    </body>
+                </html>
+                        '''
+                        post_html = f'''<article class="post">
+                        <a href="{post_dict['user_url'].split(': ')[-1]}" class="name">{post_dict['name']}</a><br/>
+                        <span class="username">Social media platform: {platform}</span><br/>
+                        <span class="username">User id: {post_dict['username']}</span><br/>
+                        <span class="username">Post id: {post_dict['post_id']}</span><br/>
+                        <br/>
+                        <div class="text">{post_dict['text']}</div>
+                        <br/>
+                        {media_string}
+                        <footer>{engagement_text}
+                            <br/>
+                            <a href="{post_dict['url']}"><time>{post_dict['created_at']}</time></a>
+                        </footer>
+                        </article>
+                        '''
+                        full_html = f"{post_head_html}{post_html}{post_foot_html}"
+                        with open(html_filename, "w", encoding='utf-8') as w:
+                            w.write(full_html)
+                        w.close()
+                        window['-OUTPUT-'].update(f"{html_filename} generated\n", append=True)
+                        my_list = html_filename.split('\\')
+                        target_dir = html_filename.replace(upload_folder, upload2).replace("preservation2", "").replace(my_list[-3], '')
+                        target_warc = os.path.join(target_dir, my_list[-1][:-5])
+                        create_directory(target_warc)
+                        temp_url = f"http://socialmedia/{post_dict['name']}/{post_dict['post_id']}"
+                        subprocess.run(['warcit', '-n', target_warc, temp_url, dirpath])
+                        window['-OUTPUT-'].update(f"{target_warc} generated, post processing a few things and cleaning up\n", append=True)
+                        os.remove(html_filename)
+                        new_metadata_file = f"{target_warc}.warc.metadata"
+                        old_metadata_file = f'{json_filename[:-4]}.metadata'
+                        shutil.copy2(old_metadata_file, new_metadata_file)
+                        with open(new_metadata_file, 'r') as r:
+                            new_filedata = r.read()
+                            standard_text = "<tslac:note>This web archive file was created for access and does not include every data element in the social media post. Original post data was normalized into a universal format. For access to the  normalized post data, please submit a request. If downloading this web archive use base url provided to render the post</tslac:note>"
+                            tslac_url = f"<tslac:note>Warc internal base url: {temp_url}</tslac:note>"
+                            new_filedata = new_filedata.replace("</dcterms:dcterms>", f"{standard_text}{tslac_url}</dcterms:dcterms>")
+                            with open(new_metadata_file, 'w') as w:
+                                w.write(new_filedata)
+                            w.close()
+                        warc_name = f"{target_warc}.warc"
+                        with gzip.open(f"{target_warc}.warc.gz", 'rb') as f:
+                            file_contents = f.read()
+                            with open(warc_name, 'wb') as w:
+                                w.write(file_contents)
+                            w.close()
+                        f.close()
+                        os.remove(f"{target_warc}.warc.gz")
+                        window['-OUTPUT-'].update(f"{json_filename} fully processed, moving on\n", append=True)
+    window['-OUTPUT-'].update(f"finished generating access warc files, use opex compiler to create the proper package for ingest", append=True)
 
 def make_upload(preservation_directories=list, upload_folder=str):
     for post in preservation_directories:
@@ -2423,7 +2646,9 @@ layout = [
                     tooltip="Checking this box will create sidecar metadata for each post compatible with TSLAC standards",
                     key='-METADATA-', enable_events=True, visible=False),
         sg.Checkbox("Generate wall too?", checkbox_color="dark green", tooltip="Checking this box will generate a html page emulating a twitter wall which can be used to review or validate content",
-                            key="-WALL-", enable_events=True, visible=False)
+                            key="-WALL-", enable_events=True, visible=False),
+        sg.Checkbox("Generate access warc?", key="-WARCIT-", enable_events=True, visible=False,
+                    tooltip="Checking this will generate a separate structure with one warc file per post and companion metadata")
     ],
     [
         sg.Text("Fill in additional metadata elements if you wish:", key='-MOREMETADATA-', visible=False)
@@ -2541,6 +2766,7 @@ while True:
         window['-CREATOR-'].update(visible=True)
         window['-CITATION_TEXT-'].update(visible=True)
         window['-CITATION-'].update(visible=True)
+        window['-WARCIT-'].update(visible=True)
     if values['-NORMALIZE-'] is False:
         window['-METADATA-'].update(visible=False)
         window['-WALL-'].update(visible=False)
@@ -2549,6 +2775,7 @@ while True:
         window['-CREATOR-'].update(visible=False)
         window['-CITATION_TEXT-'].update(visible=False)
         window['-CITATION-'].update(visible=False)
+        window['-WARCIT-'].update(visible=False)
     target_file = values['-File-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj.zip" #
     source_folder = values['-SourceFolder-'] #"/media/sf_Z_DRIVE/Working/research/socialMedia/facebook/facebook-tslac-2024-04-08-Hn2tG4Jj" #
     target_folder = values['-TargetFolder-']
@@ -2558,6 +2785,7 @@ while True:
     metadata_citation = values['-CITATION-']
     collectionName = values['-CITATION-']
     wall = values['-WALL-']
+    warcit = values['-WARCIT-']
     if event == "Execute":
         if values['-TYPE_youtube-'] is True:
             # get the variables
@@ -2599,6 +2827,10 @@ while True:
                     upload_folder = f"{target_folder}_upload"
                 make_upload(preservation_directories, upload_folder)
                 window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
+            if values['-WARCIT-'] is True:
+                window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
+                make_access_warc(upload_folder)
+                window['-OUTPUT-'].update("generated access warc files\n", append=True)
         upload_list = set()
         year_list = set()
         if target_file != "" and target_folder != "" and source_folder != "":
@@ -2639,6 +2871,10 @@ while True:
                         upload_folder = f"{target_folder}_upload"
                     make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
+                if values['-WARCIT-'] is True:
+                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
+                    make_access_warc(upload_folder)
+                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
 
             if values['-TYPE_facebook_page-'] is True:
                 extract_social_archive(target_file, source_folder)
@@ -2669,6 +2905,10 @@ while True:
                         upload_folder = f"{target_folder}_upload"
                     make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
+                if values['-WARCIT-'] is True:
+                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
+                    make_access_warc(upload_folder)
+                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
             if values['-TYPE_instagram-'] is True:
                 window['-OUTPUT-'].update(f"Starting processing instagram account data\n", append=True)
                 extract_social_archive(target_file, source_folder)
@@ -2699,6 +2939,10 @@ while True:
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
                 if values['-GET_correspondence-'] is True:
                     instagram_correspondence(source_folder, target_folder)
+                if values['-WARCIT-'] is True:
+                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
+                    make_access_warc(upload_folder)
+                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",
                                       font=("Calibri", "12", "bold"))
@@ -2707,4 +2951,3 @@ while True:
         break
 window.close()
 
-#TODO instagram
