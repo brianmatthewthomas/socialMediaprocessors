@@ -28,6 +28,8 @@ def make_access_warc(upload_folder):
                 if "preservation2" in dirpath:
                     json_filename = os.path.join(dirpath, filename)
                     html_filename = f"{json_filename[:-4]}html"
+                    my_list = html_filename.split('\\')
+                    html_filename = html_filename.replace(my_list[-1], f'{my_list[-3]}.html')
                     window['-OUTPUT-'].update(f"processing {json_filename} for access warc\n", append=True)
                     # load the json file for processing into a temporary html page
                     with open(json_filename) as r:
@@ -79,14 +81,14 @@ def make_access_warc(upload_folder):
                                 if "description" in x.keys():
                                     attachment_caption = f"<br/>{x['description']}"
                                 if x['type'] == "Image":
-                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_file = f"./{x['url']}"
                                     media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
                                 if x['type'] == "Video":
                                     thumbnail = ""
                                     if "preview" in x.keys():
-                                        thumbnail = os.path.join(dirpath, f'{x["preview"]["url"]["href"]}')
+                                        thumbnail = f'./{x["preview"]["url"]["href"]}'
                                     media_extension = x['url'].split(".")[-1]
-                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_file = f"./{x['url']}"
                                     if thumbnail == "":
                                         media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
                                     if thumbnail != "":
@@ -101,18 +103,36 @@ def make_access_warc(upload_folder):
                                 if "description" in x.keys():
                                     attachment_caption = f"<br/>{x['description']}"
                                 if x['type'] == "Image":
-                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_file = f"./{x['url']}"
                                     media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
                                 if x['type'] == "Video":
                                     thumbnail = ""
                                     if "preview" in x.keys():
-                                        thumbnail = os.path.join(dirpath, f'{x["preview"]["url"]["href"]}')
+                                        thumbnail = f'./{x["preview"]["url"]["href"]}'
                                     media_extension = x['url'].split(".")[-1]
-                                    media_file = os.path.join(dirpath, x['url'])
+                                    media_file = f"./{x['url']}"
                                     if thumbnail == "":
                                         media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
                                     if thumbnail != "":
                                         media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                        a_reply = ""
+                        if 'inReplyTo' in post.keys():
+                            reference_point = post['inReplyTo']
+                            a_reply = '<span class="username">'
+                            if "type" in reference_point.keys():
+                                a_reply = f'{a_reply}In reply to a {reference_point["type"]}, '
+                                a_reply = a_reply.replace("Note", "Post")
+                            if "href" in reference_point.keys():
+                                a_reply = f"{a_reply}id {reference_point['href']}, "
+                            if "actor" in reference_point.keys():
+                                a_reply = f"{a_reply}by "
+                                if "name" in reference_point['actor'][0].keys():
+                                    a_reply = f"{a_reply} username {reference_point['actor'][0]['name']}, "
+                                if "id" in reference_point['actor'][0].keys():
+                                    a_reply = f"{a_reply}userid {reference_point['actor'][0]['id']}"
+                            while a_reply.endswith(', '):
+                                a_reply = a_reply[:-2]
+                            a_reply = f'{a_reply}</span><br/>'
                         post_head_html = '''<html>
                             <head>
                                 <meta charset="utf-8">
@@ -195,6 +215,7 @@ def make_access_warc(upload_folder):
                         <span class="username">Social media platform: {platform}</span><br/>
                         <span class="username">User id: {post_dict['username']}</span><br/>
                         <span class="username">Post id: {post_dict['post_id']}</span><br/>
+                        {a_reply}
                         <br/>
                         <div class="text">{post_dict['text']}</div>
                         <br/>
@@ -211,22 +232,22 @@ def make_access_warc(upload_folder):
                         w.close()
                         window['-OUTPUT-'].update(f"{html_filename} generated\n", append=True)
                         my_list = html_filename.split('\\')
-                        target_dir = html_filename.replace(upload_folder, upload2).replace("preservation2", "").replace(my_list[-3], '')
+                        target_dir = dirpath.replace(upload_folder, upload2).replace("preservation2", "").replace(my_list[-3], '')
                         target_warc = os.path.join(target_dir, my_list[-1][:-5])
                         create_directory(target_warc)
-                        temp_url = f"http://socialmedia/{post_dict['name']}/{post_dict['post_id']}"
+                        temp_url = f"http://socialmedia/{platform}/{my_list[-3]}/"
                         subprocess.run(['warcit', '-n', target_warc, temp_url, dirpath])
                         window['-OUTPUT-'].update(f"{target_warc} generated, post processing a few things and cleaning up\n", append=True)
                         os.remove(html_filename)
                         new_metadata_file = f"{target_warc}.warc.metadata"
-                        old_metadata_file = f'{json_filename[:-4]}.metadata'
+                        old_metadata_file = f'{html_filename[:-5]}.metadata'
                         shutil.copy2(old_metadata_file, new_metadata_file)
-                        with open(new_metadata_file, 'r') as r:
+                        with open(new_metadata_file, 'r', encoding='utf-8') as r:
                             new_filedata = r.read()
                             standard_text = "<tslac:note>This web archive file was created for access and does not include every data element in the social media post. Original post data was normalized into a universal format. For access to the  normalized post data, please submit a request. If downloading this web archive use base url provided to render the post</tslac:note>"
-                            tslac_url = f"<tslac:note>Warc internal base url: {temp_url}</tslac:note>"
+                            tslac_url = f"<tslac:note>Warc internal base url: {temp_url}{my_list[-3]}html</tslac:note>"
                             new_filedata = new_filedata.replace("</dcterms:dcterms>", f"{standard_text}{tslac_url}</dcterms:dcterms>")
-                            with open(new_metadata_file, 'w') as w:
+                            with open(new_metadata_file, 'w', encoding='utf-8') as w:
                                 w.write(new_filedata)
                             w.close()
                         warc_name = f"{target_warc}.warc"
@@ -341,6 +362,24 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                         description.text = f"{platform} {post_type} text: {post['content']}"
                     elif "summary" in post.keys():
                         description.text = f"{platform} {post_type} summary: {post['summary']}"
+                    if 'inReplyTo' in post.keys():
+                        temp_text = ""
+                        reference_point = post['inReplyTo']
+                        if "type" in reference_point.keys():
+                            temp_text = f'{temp_text}In reply to a {reference_point["type"]}, '
+                            temp_text = temp_text.replace("Note", "Post")
+                        if "href" in reference_point.keys():
+                            temp_text = f"{temp_text}id {reference_point['href']}, "
+                        if "actor" in reference_point.keys():
+                            temp_text = f"{temp_text}by "
+                            if "name" in reference_point['actor'][0].keys():
+                                temp_text = f"{temp_text} username {reference_point['actor'][0]['name']}, "
+                            if "id" in reference_point['actor'][0].keys():
+                                temp_text = f"{temp_text}userid {reference_point['actor'][0]['id']}"
+                        while temp_text.endswith(', '):
+                            temp_text = temp_text[:-2]
+                        temp_text = f'{temp_text}</span><br/>'
+                        description.text = f"{description.text}. {temp_text}."
                     # description.text = f"{post['platform']} post text: {post['content_text']}"
                     collectionName = SubElement(metadata, 'dcterms:relation.isPartOf')
                     collectionName.text = collection_name
@@ -1292,7 +1331,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                         if json_data["in_reply_to_status_id"] is not None:
                             normalized_json['inReplyTo'] = {'type': 'Note',
                                                             'href': json_data['in_reply_to_status_id_str'],
-                                                            'Actor': [{'type': 'twitter',
+                                                            'actor': [{'type': 'twitter',
                                                                        'id': json_data['in_reply_to_user_id_str'],
                                                                        'name': json_data['in_reply_to_screen_name'],
                                                                        'url': f"https://www.twitter.com/{json_data['in_reply_to_screen_name']}"}]}
@@ -2828,9 +2867,18 @@ while True:
                 make_upload(preservation_directories, upload_folder)
                 window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
             if values['-WARCIT-'] is True:
-                window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
-                make_access_warc(upload_folder)
-                window['-OUTPUT-'].update("generated access warc files\n", append=True)
+                window['-OUTPUT-'].update(f"testing to see if warcit accessible, will skip if not")
+                temp_flag = True
+                try:
+                    subprocess.run(['warcit', '-V'])
+                    temp_flag = True
+                except:
+                    temp_flag = False
+                    continue
+                if temp_flag is True:
+                    window['-OUTPUT-'].update(f"warcit test successful, creating access warc files\n", append=True)
+                    make_access_warc(upload_folder)
+                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
         upload_list = set()
         year_list = set()
         if target_file != "" and target_folder != "" and source_folder != "":
@@ -2872,9 +2920,18 @@ while True:
                     make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
                 if values['-WARCIT-'] is True:
-                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
-                    make_access_warc(upload_folder)
-                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
+                    window['-OUTPUT-'].update(f"testing to see if warcit accessible, will skip if not")
+                    temp_flag = True
+                    try:
+                        subprocess.run(['warcit', '-V'])
+                        temp_flag = True
+                    except:
+                        temp_flag = False
+                        continue
+                    if temp_flag is True:
+                        window['-OUTPUT-'].update(f"warcit test successful, creating access warc files\n", append=True)
+                        make_access_warc(upload_folder)
+                        window['-OUTPUT-'].update("generated access warc files\n", append=True)
 
             if values['-TYPE_facebook_page-'] is True:
                 extract_social_archive(target_file, source_folder)
@@ -2906,9 +2963,18 @@ while True:
                     make_upload(preservation_directories, upload_folder)
                     window['-OUTPUT-'].update(f"done creating upload directories and files\n", append=True)
                 if values['-WARCIT-'] is True:
-                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
-                    make_access_warc(upload_folder)
-                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
+                    window['-OUTPUT-'].update(f"testing to see if warcit accessible, will skip if not")
+                    temp_flag = True
+                    try:
+                        subprocess.run(['warcit', '-V'])
+                        temp_flag = True
+                    except:
+                        temp_flag = False
+                        continue
+                    if temp_flag is True:
+                        window['-OUTPUT-'].update(f"warcit test successful, creating access warc files\n", append=True)
+                        make_access_warc(upload_folder)
+                        window['-OUTPUT-'].update("generated access warc files\n", append=True)
             if values['-TYPE_instagram-'] is True:
                 window['-OUTPUT-'].update(f"Starting processing instagram account data\n", append=True)
                 extract_social_archive(target_file, source_folder)
@@ -2940,9 +3006,18 @@ while True:
                 if values['-GET_correspondence-'] is True:
                     instagram_correspondence(source_folder, target_folder)
                 if values['-WARCIT-'] is True:
-                    window['-OUTPUT-'].update(f"creating access warc files\n", append=True)
-                    make_access_warc(upload_folder)
-                    window['-OUTPUT-'].update("generated access warc files\n", append=True)
+                    window['-OUTPUT-'].update(f"testing to see if warcit accessible, will skip if not")
+                    temp_flag = True
+                    try:
+                        subprocess.run(['warcit', '-V'])
+                        temp_flag = True
+                    except:
+                        temp_flag = False
+                        continue
+                    if temp_flag is True:
+                        window['-OUTPUT-'].update(f"warcit test successful, creating access warc files\n", append=True)
+                        make_access_warc(upload_folder)
+                        window['-OUTPUT-'].update("generated access warc files\n", append=True)
         else:
             window['-STATUS-'].update("Need more data, fill in the proper elements\n", text_color="orchid1",
                                       font=("Calibri", "12", "bold"))
