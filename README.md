@@ -84,8 +84,11 @@ Type checkboxes:
 Normalize JSON: Check to normalize the social media json file into a standardized format. This is current based upon the standard activity stream. Documentation of that standard can be found here: `https://www.w3.org/TR/activitystreams-vocabulary/`
 1. Normalize json will move the original processed post into a subfolder called `preservation1`. A duplicate is placed in a subfolder called `preservation2`
 2. When subfoldering is completed, the tool will then crawl through the new post folders, load the json data, and crosswalk it as much as feasible into the Activity Streams data standard. Not all data crosswalks and some data is superfluous to the content of the post. For non-superfluous data that does not crosswalk, a special data field with either the `dcterms` prefix or `platform_name` prefix will be used.
-Export metadata: If checked, after file normalization, the tool will recrawl the new posts, but this time on the normalized file and extract key data data elements into a variation of Qualified Dublin Core and TSLAC-specific metadata as XML, to be used in TSLAC’s preservation/access system to facilitation discovery/access/management.
-Generate Wall too?: Checking this will make the tool recrawl the normalized file set, in its entirety including older processed posts, and rework it into a standards html page. This is meant to help a processor review the output and determine if something went wrong. Post text is directly saved into the html file, but pulling up media is highly dependent on keeping the post structure intact. Removing a post folder will media will result in a section of html that will have text but no picture/video/etc.
+
+3. Export metadata: If checked, after file normalization, the tool will recrawl the new posts, but this time on the normalized file and extract key data data elements into a variation of Qualified Dublin Core and TSLAC-specific metadata as XML, to be used in TSLAC’s preservation/access system to facilitation discovery/access/management.
+
+4. Generate Wall too?: Checking this will make the tool recrawl the normalized file set, in its entirety including older processed posts, and rework it into a standards html page. This is meant to help a processor review the output and determine if something went wrong. Post text is directly saved into the html file, but pulling up media is highly dependent on keeping the post structure intact. Removing a post folder will media will result in a section of html that will have text but no picture/video/etc.
+5. Generate access warc?: Checking this will tap into a tool called warcit to create a **W**eb**ARC**hive file that includes all of the normalized file contents and a constructed html version of the post to emulate a genericized version of how a post is rendered. Specialized tools can then read the WARC file in a web browser as if it were a live website. Each post gets its own warc file to maintain its status as a unit. The WARC will also include the json file and metadata file. WARC files get pushed to a special folder with the upload staging location folder name + _access. If metadata files were generated, access file metadata will include notes about WARCs and the url to input into the reader for rendering. **Note** that warc generation uses an external tool that is called from the command line automatically for each post and close when the process is done for that post, you will see a lot of screens pop up briefly. This is ***normal***, but it will cause the computer to become functionally impossible to use for other tasks until the process completes as the pop-up takes primacy over any task you were doing beforehand.
 ### Lowest section
 Execute: Will start the processing. Once started you cannot stop it with the close button. The X on the upper right-hand will crash the processing as will right-clicking the icon in the tray and selecting close window or using task manager.
 
@@ -101,6 +104,12 @@ The output of this tool requires a very standardized structure in the same manne
 5. Actor 1: The post content has to be self-encapsulated as much as possible. Originally modeled after twitter’s method of doing so with their API, this concept is very important as a social media archive expands to multiple entities. Thus, while processing a zip file, user data is also processed and inserted into every output json file as an “Actor”. This is always the first actor to be added so it will always show up first.
 6. Lost files: The creator of this tool has already noticed that some of the media files involved with posts have been lost. If a file cannot be found in a download the tool will try to get the media directly from the social media platform. If still not available it will move on. If generating a wall, this will show up as a broken reference
 7. Wall is not authoritative: The wall works off of normalized data so is drawing on shared elements and is meant for reference/quality control purposes only. It is not intended to be crawled to generate a wacz file to then be browsable in a web archive player. The underlying data is very likely going to massive as it will try to grab every single piece of media attached to the file.
+## External tools
+The warc generator for access copies of the social media posts/content runs using a tool called warcit. To utilize this functional you *must* have warcit installed on your computer. The program is written to test for warcit and move-on if not present, but do not push it.
+
+You can install python on your computer by first installing a local version of python from https://www.python.org/downloads/. A pre-3.10 version is needed as 3.10 forward requires a labor-intensive workaround to install warcit outside of a virtual environment. Post-installation, reboot your computer to ensure installation takes full effect. After that run:
+
+`python -m pip install warcit` or some variant of that command. Go to https://github.com/webrecorder/warcit/tree/master if you have trouble.
 ## Crashed processes
 This tool was created by a single person (Brian Thomas) using available knowledge and resources. As such, not all eventualities have been accounted for, only those that they were exposed to and could resolve. Crashes seem to be isolated to oddball characters or non-latin character. If the processor crashes it is highly likely an error pop-up box will be generated that shows a section of code for the error. Also, the print-out in the dialog box should say more information about what was happening at the time of the crash. Please document both (the code message in its entirety including formatting of the message) as send it to the author for review. They may ask for additional information such as a copy of the post file for troubleshooting. No guarantees of a fix, but we’ll try.
 # Requesting additional platforms support
@@ -128,7 +137,7 @@ As of the time of this writing, a user can only export from X.com as twitter.com
 ![](./directions_media/twitter_request_download.jpg)
 
 7. You will receive an email notice when the account download becomes available. Follow the directions to do that.
-## Facebook
+## Facebook/Threads
 To export Facebook content you will need login access to the account. The following directions are based upon an individual account, the method for a institutional page are likely to be the same or similar
 1. Login
 2. Go to the upper right-hand corner and click on the user profile picture
@@ -150,7 +159,7 @@ To export Facebook content you will need login access to the account. The follow
 ![](./directions_media/facebook_downloadSelection.jpg)
 
 8. Follow steps 9-13 for instagram
-## Instagram
+## Instagram/Reels
 To export Instagram content you will need login access to the account. The following directions are for a individual account. Institutional accounts should be the same, but if not the gist will be similar.
 1. Login
 2. Go to the bottom left-hand "More" three dashes icon and click on it
@@ -188,3 +197,15 @@ To export Instagram content you will need login access to the account. The follo
 12. The account download generation process will start and you will be notified when it is ready via the selected email address. You may need to navigate back to the Download screen to access it
 13. Download the zip file for transfer to the State Archives
 
+## Upcoming development wishlist
+Documenting additional things I will try to add/modify over time. Will be ~~struck through~~ if I am successful or deleted if it becomes apparent it is not possible.
+1. Threads processing
+2. Instagram institutional account processing (high priority)
+3. HTML processing of posts for instances where transferor messed up the download process.
+   1. Facebook
+   2. Twixter
+   3. Instagram
+   4. Threads
+4. TikTok (unlikely due to restrictions in Texas on use of TikTok but useful for gathering historic TikTok data for agencies that adopted the platform)
+5. Nextdoor processing
+6. LinkedIn processing

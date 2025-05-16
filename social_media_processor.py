@@ -71,18 +71,18 @@ def make_access_warc(upload_folder):
                             preview_caption = ""
                             if "name" in post['preview'].keys():
                                 preview_caption = f"<br/>{post['preview']['name']}<br/>"
-                            media_string = f'{media_string}<div><img class="post-photo" src="{post["preview"]["href"]}"/>{preview_caption}</div>'
-                        if "attachments" in post.keys():
-                            for x in post['attachments']:
+                            media_string = f'{media_string}<div><img class="post-photo" src="{post["preview"]["href"]}"/>{preview_caption}<br/><hr/></div>'
+                        if "attachment" in post.keys():
+                            for x in post['attachment']:
                                 attachment_caption = ""
                                 attachment_title = ""
                                 if "title" in x.keys():
-                                    attachment_title = f"{x['title']}<br/>"
+                                    attachment_title = f'<span class="itemTitle">Title: <strong>{x["title"]}</span><br/>'
                                 if "description" in x.keys():
                                     attachment_caption = f"<br/>{x['description']}"
                                 if x['type'] == "Image":
                                     media_file = f"./{x['url']}"
-                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
+                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}<br/><hr/></div>'
                                 if x['type'] == "Video":
                                     thumbnail = ""
                                     if "preview" in x.keys():
@@ -90,21 +90,21 @@ def make_access_warc(upload_folder):
                                     media_extension = x['url'].split(".")[-1]
                                     media_file = f"./{x['url']}"
                                     if thumbnail == "":
-                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
                                     if thumbnail != "":
-                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><hr/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
                         if post['type'] == "Collection":
-                            media_string = f'{media_string}<div>Item is a video playlist of album, see below for attached items. There are {str(post["totalitems"])} items.</div>'
+                            media_string = f'{media_string}<div>Item is a video playlist or album, see below for attached items. There are {str(post["totalitems"])} items.</div>'
                             for x in post['items']:
                                 attachment_caption = ""
                                 attachment_title = ""
                                 if "title" in x.keys():
-                                    attachment_title = f"{x['title']}<br/>"
+                                    attachment_title = f'<span class="itemTitle">Title: {x["title"]}</span><br/>'
                                 if "description" in x.keys():
                                     attachment_caption = f"<br/>{x['description']}"
                                 if x['type'] == "Image":
                                     media_file = f"./{x['url']}"
-                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}</div>'
+                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}<br/><hr/></div>'
                                 if x['type'] == "Video":
                                     thumbnail = ""
                                     if "preview" in x.keys():
@@ -112,16 +112,16 @@ def make_access_warc(upload_folder):
                                     media_extension = x['url'].split(".")[-1]
                                     media_file = f"./{x['url']}"
                                     if thumbnail == "":
-                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
                                     if thumbnail != "":
-                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}</div>'
+                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><hr/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
                         a_reply = ""
                         if 'inReplyTo' in post.keys():
                             reference_point = post['inReplyTo']
                             a_reply = '<span class="username">'
                             if "type" in reference_point.keys():
                                 a_reply = f'{a_reply}In reply to a {reference_point["type"]}, '
-                                a_reply = a_reply.replace("Note", "Post")
+                                a_reply = a_reply.replace("Note", "post")
                             if "href" in reference_point.keys():
                                 a_reply = f"{a_reply}id {reference_point['href']}, "
                             if "actor" in reference_point.keys():
@@ -140,16 +140,15 @@ def make_access_warc(upload_folder):
                                     <style>
                                      body {
                                         font-family: Arial, Helvetica, sans-serif;
-                                        font-size: 12pt;
+                                        font-size: 1em;
                                         margin-left: auto;
                                         margin-right: auto;
                                         width: 95%;
                                      }
                                      article.post {
                                         position: relative;
-                                        float: left;
                                         border: thin #eeeeee solid;
-                                        margin: 10px;
+                                        margin: auto;
                                         width: 600px;
                                         padding: 10px;
                                         display: block;
@@ -173,7 +172,7 @@ def make_access_warc(upload_folder):
                                         clear: both;
                                         width: 100%;
                                         text-align: center;
-                                        font-size: 20pt;
+                                        font-size: 10pt;
                                         font-weight: heavy;
                                      }
                                      header {
@@ -193,6 +192,10 @@ def make_access_warc(upload_folder):
                                      }
                                      .avatar-column {
                                         width: 50%;
+                                    }
+                                    .itemTitle {
+                                        font-size: 1.25em;
+                                        font-weight: bold;
                                     }
                                     </style>
                                 </head>
@@ -244,8 +247,8 @@ def make_access_warc(upload_folder):
                         shutil.copy2(old_metadata_file, new_metadata_file)
                         with open(new_metadata_file, 'r', encoding='utf-8') as r:
                             new_filedata = r.read()
-                            standard_text = "<tslac:note>This web archive file was created for access and does not include every data element in the social media post. Original post data was normalized into a universal format. For access to the  normalized post data, please submit a request. If downloading this web archive use base url provided to render the post</tslac:note>"
-                            tslac_url = f"<tslac:note>Warc internal base url: {temp_url}{my_list[-3]}html</tslac:note>"
+                            standard_text = "<tslac:note>This web archive file was created for access and does not include every data element in the social media post. Original post data was normalized into a universal format. A copy of the universal format is stored within the web archive with the file extension .json. If downloading this web archive use base url provided to render the post.</tslac:note>"
+                            tslac_url = f"<tslac:note>Warc internal base url: {temp_url}{my_list[-3]}.html</tslac:note>"
                             new_filedata = new_filedata.replace("</dcterms:dcterms>", f"{standard_text}{tslac_url}</dcterms:dcterms>")
                             with open(new_metadata_file, 'w', encoding='utf-8') as w:
                                 w.write(new_filedata)
@@ -574,8 +577,8 @@ def create_wall(target_folder=str):
                 if post['type'] == "Collection":
                     if "items" in post.keys():
                         media_string = f'{media_string}<div>Item is a video playlist or album, see raw data for attachment details</div>'
-                if "attachments" in post.keys():
-                    for x in post['attachments']:
+                if "attachment" in post.keys():
+                    for x in post['attachment']:
                         if x['type'] == "Image":
                             media_file = os.path.join(dirpath, x['url'])
                             media_string = f'{media_string}<div><img class="tweet-photo" src="{media_file}"/></div>'
@@ -1066,8 +1069,8 @@ def normalize_youtube_activityStream(preservation_directories=list):
                             normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
                             normalized_json['engagement'].append({'type': "Likes", 'count': json_data['like_count']})
-                            if "attachments" not in normalized_json.keys():
-                                normalized_json['attachments'] = []
+                            if "attachment" not in normalized_json.keys():
+                                normalized_json['attachment'] = []
                             mini_dict = {'type': "Video"}
                             mini_dict['mediaType'] = f"video/{json_data['ext']}"
                             base_filename = filename[:-4]
@@ -1112,7 +1115,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                     mini_dict['preview']['url']['href'] = f"{filename1[:-5]}_thumbnail.jpg"
                                     if len(my_thumbnail['url'].split('.')) > 1:
                                         mini_dict['preview']['url']['mediaType'] = f"image/{mini_dict['preview']['url']['href'].split('.')[-1]}"
-                                    normalized_json['attachments'].append(mini_dict)
+                                    normalized_json['attachment'].append(mini_dict)
                             if "thumbnails" in json_data.keys():
                                 root_thumbnail_name = f"{filename[:-5]}_thumbnail"
                                 for item in json_data['thumbnails']:
@@ -1143,7 +1146,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                             subtitle_dict['type'] = "subtitle"
                                             subtitle_dict['name'] = subtitle['name']
                                             subtitle_dict['url'] = f"{filename1[:-4]}{rooty}.{subtitle['ext']}"
-                                            normalized_json['attachments'].append(subtitle_dict)
+                                            normalized_json['attachment'].append(subtitle_dict)
                         normalized_json = normalization_tags(normalized_json, text_block, 'youtube')
                         if "categories" in json_data.keys():
                             if json_data['categories'] != []:
@@ -1374,8 +1377,8 @@ def normalize_twitter_activitystream(preservation_directories=list):
                         if "media" in json_data['entities'].keys():
                             # insert media handler here
                             media_set = json_data['extended_entities']['media']
-                            if "attachments" not in normalized_json.keys():
-                                normalized_json['attachments'] = []
+                            if "attachment" not in normalized_json.keys():
+                                normalized_json['attachment'] = []
                             for current_media in media_set:
                                 # clear prior mini_dict in case something is lingering
                                 mini_dict = ""
@@ -1385,7 +1388,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     mini_dict['url'] = f"{json_data['id_str']}-{current_media['media_url'].split('/')[-1]}"
                                     mini_dict['mediaType'] = f"image/{mini_dict['url'].split('.')[-1]}"
                                     mini_dict['id'] = current_media['id_str']
-                                    normalized_json['attachments'].append(mini_dict)
+                                    normalized_json['attachment'].append(mini_dict)
                                 if current_media['type'] == "video":
                                     preview = ""
                                     preview = {
@@ -1440,7 +1443,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                 mini_dict['mediaType'] = variant['content_type']
                                                 mini_dict['url'] = variant['url'].split('/')[-1]
                                         if mini_dict != {}:
-                                            normalized_json['attachments'].append(mini_dict)
+                                            normalized_json['attachment'].append(mini_dict)
                                 if current_media['type'] == "animated_gif":
                                     preview = ""
                                     preview = {
@@ -1459,7 +1462,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     if "bitrate" in current_media['video_info']['variants'][0].keys():
                                         mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
                                     mini_dict['preview'] = preview
-                                    normalized_json['attachments'].append(mini_dict)
+                                    normalized_json['attachment'].append(mini_dict)
                         with open(filename, 'w') as w:
                             json.dump(normalized_json, w)
                         w.close()
@@ -1874,11 +1877,11 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             if "title" in json_data.keys():
                                 normalized_json['summary'] = json_data['title']
                                 text_block = f"{text_block} {json_data['title']}"
-                            if "attachments" in json_data.keys():
-                                normalized_json['attachments'] = []
+                            if "attachment" in json_data.keys():
+                                normalized_json['attachment'] = []
                                 location_list = []
                                 url_list = []
-                                for attachment in json_data['attachments']:
+                                for attachment in json_data['attachment']:
                                     attachment_data = attachment['data']
                                     for single_attachment in attachment_data:
                                         # reset the short dictionary
@@ -1912,7 +1915,7 @@ def normalize_facebook_activityStream(preservation_directories=list):
                                                     short_dictionary['mediaType'] = short_dictionary['mediaType'].replace("media", "video")
                                                     short_dictionary = facebook_mediaExif_extractor(short_dictionary, single_attachment['media_metadata']['video_metadata']['exif_data'])
                                             short_dictionary = normalization_tags(short_dictionary, mini_textblock, 'facebook')
-                                            normalized_json['attachments'].append(short_dictionary)
+                                            normalized_json['attachment'].append(short_dictionary)
                                             text_block = f"{text_block} {mini_textblock}"
                                         if "place" in single_attachment.keys():
                                             single_attachment = single_attachment['place']
@@ -2149,8 +2152,8 @@ def facebook_handler(source_folder=str, target_folder=str):
                     json.dump(master_post_text, w)
                 w.close()
                 os.rename(master_post, f"{master_post[:-3]}json")
-                if 'attachments' in post.keys():
-                    for attachment in post['attachments']:
+                if 'attachment' in post.keys():
+                    for attachment in post['attachment']:
                         units = attachment['data']
                         for unit in units:
                             if "media" in unit.keys():
@@ -2337,8 +2340,8 @@ def facebook_handler(source_folder=str, target_folder=str):
                         w.close()
                         os.rename(master_post, f"{master_post[:-3]}json")
                         # deal with any media
-                        if "attachments" in post.keys():
-                            attachment_list = post['attachments']
+                        if "attachment" in post.keys():
+                            attachment_list = post['attachment']
                             for attachment in attachment_list:
                                 attachment = attachment['data']
                                 for x in attachment:
@@ -2536,7 +2539,7 @@ def normalize_instagram_activityStream(preservation_directories=list):
                             normalized_json['summary'] = json_data['title']
                             text_block = f"{text_block} {json_data['title']}"
                         if "media" in json_data.keys():
-                            normalized_json['attachments'] = []
+                            normalized_json['attachment'] = []
                             medias = json_data['media']
                             if len(medias) > 1:
                                 normalized_json['type'] = "Collection"
@@ -2578,7 +2581,7 @@ def normalize_instagram_activityStream(preservation_directories=list):
                                             for item in media['media_metadata']['video_metadata']['exif_data']:
                                                 for key in item.keys():
                                                     short_dictionary[f'exif:{key}'] = item[key]
-                                normalized_json['attachments'].append(short_dictionary)
+                                normalized_json['attachment'].append(short_dictionary)
                                 if subtitle_flag is True:
                                     short_dictionary = 0
                                     short_dictionary = {}
@@ -2586,7 +2589,7 @@ def normalize_instagram_activityStream(preservation_directories=list):
                                                         'url': media['uri'].split('/')[-1],
                                                         'dcterms:date.created': str(datetime.datetime.fromtimestamp(media['creation_timestamp'])),
                                                         'mediaType': 'text/srt'}
-                                    normalized_json['attachments'].append(short_dictionary)
+                                    normalized_json['attachment'].append(short_dictionary)
                         normalized_json = normalization_tags(normalized_json, text_block, 'instagram')
                         with open(filename, 'w') as w:
                             json.dump(normalized_json, w)
