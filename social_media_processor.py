@@ -144,6 +144,7 @@ def make_access_warc(upload_folder):
                                         margin-left: auto;
                                         margin-right: auto;
                                         width: 95%;
+                                        background-color: white;
                                      }
                                      article.post {
                                         position: relative;
