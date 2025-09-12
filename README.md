@@ -110,6 +110,13 @@ The warc generator for access copies of the social media posts/content runs usin
 You can install python on your computer by first installing a local version of python from https://www.python.org/downloads/. A pre-3.10 version is needed as 3.10 forward requires a labor-intensive workaround to install warcit outside of a virtual environment. Post-installation, reboot your computer to ensure installation takes full effect. After that run:
 
 `python -m pip install warcit` or some variant of that command. Go to https://github.com/webrecorder/warcit/tree/master if you have trouble.
+
+If you **must** install using python3.11 due to IT "security concerns", then the following additional steps are needed, which is why the above instructions specify to use a lower version of python.
+1. Install Microsoft Visuall C++ as described at https://www.scivision.dev/python-windows-visual-c-14-required.
+2. Install chardet (in python3.10 and earlier this was called cchardet) using `python -m pip install chardet`
+3. Go to https://github.com/webrecorder/warcit/tree/master and download the source code zip file. Untar.gz the downloaded file.
+4. Go into the warcit folder structure that results and update references in all files from cchardet to chardet. **ALL** files you can edit. 
+5. At root of the folder structure (probably innermost warcit-0.4.0), type `python -m pip install .` This will install warcit specifically from your modified package.
 ## Crashed processes
 This tool was created by a single person (Brian Thomas) using available knowledge and resources. As such, not all eventualities have been accounted for, only those that they were exposed to and could resolve. Crashes seem to be isolated to oddball characters or non-latin character. If the processor crashes it is highly likely an error pop-up box will be generated that shows a section of code for the error. Also, the print-out in the dialog box should say more information about what was happening at the time of the crash. Please document both (the code message in its entirety including formatting of the message) as send it to the author for review. They may ask for additional information such as a copy of the post file for troubleshooting. No guarantees of a fix, but we’ll try.
 # Requesting additional platforms support
