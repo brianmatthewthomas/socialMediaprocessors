@@ -206,7 +206,7 @@ To export Instagram content you will need login access to the account. The follo
 
 ## Upcoming development wishlist
 Documenting additional things I will try to add/modify over time. Will be ~~struck through~~ if I am successful or deleted if it becomes apparent it is not possible.
-1. Threads processing
+1. Threads processing 
 2. Instagram institutional account processing (high priority)
 3. HTML processing of posts for instances where transferor messed up the download process.
    1. Facebook
