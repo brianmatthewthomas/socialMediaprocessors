@@ -222,7 +222,7 @@ def make_access_warc(upload_folder):
                         target_warc = os.path.join(target_dir, my_list[-1][:-5])
                         create_directory(target_warc)
                         temp_url = f"http://socialmedia/{platform}/{my_list[-3]}/"
-                        subprocess.run(['warcit', '-n', target_warc, temp_url, dirpath])
+                        subprocess.run(['warcit', '-n', target_warc, temp_url, dirpath], creationflags=subprocess.CREATE_NO_WINDOW)
                         window['-OUTPUT-'].update(f"{target_warc} generated, post processing a few things and cleaning up\n", append=True)
                         os.remove(html_filename)
                         new_metadata_file = f"{target_warc}.warc.metadata"
@@ -1226,15 +1226,15 @@ def normalize_twitter(preservation_directories=list):
                                                                  'longitude': ""},
                                                  'technical': dict()}
                                     # populate technical data section if the data points are there
-                                    if "sizes" in media:
+                                    if "sizes" in media.heys():
                                         mini_dict['technical']['sizes'] = dict()
                                         for key in media['sizes'].keys():
                                             mini_dict['technical']['sizes'][key] = media['sizes'][key]
-                                    if "additional_media_info" in media:
+                                    if "additional_media_info" in media.keys():
                                         mini_dict['technical']['additional_media_info'] = dict()
                                         for key in media['additional_media_info'].keys():
                                             mini_dict['technical']['additional_media_info'][key] = media['additional_media_info'][key]
-                                    if "video_info" in media:
+                                    if "video_info" in media.keys():
                                         mini_dict['technical']['video_info'] = dict()
                                         for key in media['video_info'].keys():
                                             mini_dict['technical']['video_info'][key] = media['video_info'][key]
@@ -1403,7 +1403,10 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     for variant in current_media['video_info']['variants']:
                                         mini_dict = ""
                                         mini_dict = {}
-                                        if os.path.isfile(f"{dirpath}/{json_data['id_str']}-{variant['url'].split('/')[-1]}"):
+                                        my_variant = variant['url'].split('/')[-1].split('/')[-1]
+                                        if "?tag=" in my_variant:
+                                            my_variant = my_variant[:-(len(my_variant.split("?tag=")[-1])+5)]
+                                        if os.path.isfile(f"{dirpath}/{json_data['id_str']}-{my_variant}"):
                                             if variant['content_type'].startswith("video"):
                                                 mini_dict['type'] = "Video"
                                                 mini_dict['id'] = current_media['id_str']
@@ -1425,6 +1428,8 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                                 mini_dict['id'] = current_media['id_str']
                                                 mini_dict['mediaType'] = variant['content_type']
                                                 mini_dict['url'] = variant['url'].split('/')[-1]
+                                            if "?tag=" in mini_dict['url']:
+                                                mini_dict['url'] = mini_dict['url'][:-(len(mini_dict['url'].split("?tag=")[-1])+5)]
                                         if mini_dict != {}:
                                             normalized_json['attachment'].append(mini_dict)
                                 if current_media['type'] == "animated_gif":
