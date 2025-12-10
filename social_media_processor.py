@@ -62,7 +62,10 @@ def make_access_warc(upload_folder):
                         engagement_text = ""
                         if "engagement" in post.keys():
                             for item in post['engagement']:
-                                engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
+                                if item['type'].endswith("s"):
+                                    engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}"
+                                else:
+                                    engagement_text = f"{engagement_text} {str(item['count'])} {item['type']}s"
                         summary = ""
                         if "summary" in post.keys():
                             summary = post['summary']
@@ -113,6 +116,9 @@ def make_access_warc(upload_folder):
                             while a_reply.endswith(', '):
                                 a_reply = a_reply[:-2]
                             a_reply = f'{a_reply}</span><br/>'
+                        titleist = ""
+                        if "name" in post.keys():
+                            titleist = f'<div class="text">Title: {post["name"]}</div><br/>'
                         post_head_html = '''<html>
                             <head>
                                 <meta charset="utf-8">
@@ -203,7 +209,7 @@ def make_access_warc(upload_folder):
                         <span class="username">Post id: {post_dict['post_id']}</span><br/>
                         {a_reply}
                         <br/>
-                        <div class="text">{post_dict['text']}</div>
+                        {titleist}<div class="text">{post_dict['text']}</div>
                         <br/>
                         {media_string}
                         <footer>{engagement_text}
@@ -342,6 +348,8 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                     if date == "":
                         date = "Undated"
                     title.text = f"{date} {platform} {post_type}: {post_type} id {post['id']}"
+                    if platform == "YouTube" and "name" in post.keys():
+                        title.text = f"{date} {platform} {post_type}: {post['name']}, {post_type} id {post['id']}"
                     # title.text = f"{filename.split('_')[0]}: {post['platform']} post id {post['post_id']}"
                     description = SubElement(metadata, 'dcterms:description.abstract')
                     if "content" in post.keys():
@@ -1014,6 +1022,7 @@ def normalize_youtube_activityStream(preservation_directories=list):
                     # clear any existing normalized json data by switching data types and switching back
                     normalized_json = 0
                     normalized_json = {}
+                    forbidden_list = [':', '!', '#', '$', '&', "'", '(', ')', '*', '+', ',', ';', '=', '?', '@', '[', ']', '｜', '：', '？']
                     with open(filename, 'r', encoding='utf-8') as r:
                         filedata = r.read()
                         json_data = json.loads(filedata)
@@ -1049,6 +1058,19 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                     thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
                                     if os.path.isfile(thumbnail_name):
                                         normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1].split('\\')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
+                                        original = normalized_json['preview']['href']
+                                        new = original
+                                        for item in forbidden_list:
+                                            if item in new:
+                                                new = new.replace(item, "")
+                                        if new != original:
+                                            old_file = os.path.join(dirpath, original)
+                                            new_file = os.path.join(dirpath, new)
+                                            old_preservation = old_file.replace('\\preservation2\\', '\\preservation1\\')
+                                            new_preservation = new_file.replace('\\preservation2\\', '\\preservation1\\')
+                                            os.rename(old_file, new_file)
+                                            os.rename(old_preservation, new_preservation)
+                                            normalized_json['preview']['href'] = new
                             normalized_json['totalItems'] = json_data['playlist_count']
                         if '"_type": "video"' in filedata:
                             normalized_json['engagement'].append({'type': "Likes", 'count': json_data['like_count']})
@@ -1059,6 +1081,19 @@ def normalize_youtube_activityStream(preservation_directories=list):
                             base_filename = filename[:-4]
                             if os.path.isfile(f"{base_filename}{json_data['ext']}"):
                                 mini_dict['url'] = base_filename.split('/')[-1].split('\\')[-1] + f"{json_data['ext']}"
+                                original = mini_dict['url']
+                                new = original
+                                for item in forbidden_list:
+                                    if item in new:
+                                        new = new.replace(item, "")
+                                if new != original:
+                                    old_file = os.path.join(dirpath, original)
+                                    new_file = os.path.join(dirpath, new)
+                                    old_preservation = old_file.replace('\\preservation2\\', '\\preservation1\\')
+                                    new_preservation = new_file.replace('\\preservation2\\', '\\preservation1\\')
+                                    os.rename(old_file, new_file)
+                                    os.rename(old_preservation, new_preservation)
+                                    mini_dict['url'] = new
                             if "url" not in mini_dict.keys():
                                 mini_dict['url'] = json_data['webpage_url']
                                 normalized_json['content'] = f"{normalized_json['content']}. Unable to download video for preservation."
@@ -1096,6 +1131,19 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                         mini_dict['preview']['width'] = my_thumbnail['width']
                                     mini_dict['preview']['url'] = {}
                                     mini_dict['preview']['url']['href'] = f"{filename1[:-5]}_thumbnail.jpg"
+                                    original = mini_dict['preview']['url']['href']
+                                    new = original
+                                    for item in forbidden_list:
+                                        if item in new:
+                                            new = new.replace(item, "")
+                                    if new != original:
+                                        old_file = os.path.join(dirpath, original)
+                                        new_file = os.path.join(dirpath, new)
+                                        old_preservation = old_file.replace('\\preservation2\\', '\\preservation1\\')
+                                        new_preservation = new_file.replace('\\preservation2\\', '\\preservation1\\')
+                                        os.rename(old_file, new_file)
+                                        os.rename(old_preservation, new_preservation)
+                                        mini_dict['preview']['url']['href'] = new
                                     if len(my_thumbnail['url'].split('.')) > 1:
                                         mini_dict['preview']['url']['mediaType'] = f"image/{mini_dict['preview']['url']['href'].split('.')[-1]}"
                                     normalized_json['attachment'].append(mini_dict)
@@ -1105,6 +1153,19 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                     thumbnail_name = f"{root_thumbnail_name}{item['id']}.jpg"
                                     if os.path.isfile(thumbnail_name):
                                         normalized_json['preview'] = {'type': "Image", "name": "Thumbnail", "href": thumbnail_name.split('/')[-1], "mediaType": "image/jpg", "height": item['height'], "width": item['width']}
+                                        original = normalized_json['preview']['href']
+                                        new = original
+                                        for item in forbidden_list:
+                                            if item in new:
+                                                new = new.replace(item, "")
+                                        if new != original:
+                                            old_file = os.path.join(dirpath, original)
+                                            new_file = os.path.join(dirpath, new)
+                                            old_preservation = old_file.replace('\\preservation2\\', '\\preservation1\\')
+                                            new_preservation = new_file.replace('\\preservation2\\', '\\preservation1\\')
+                                            os.rename(old_file, new_file)
+                                            os.rename(old_preservation, new_preservation)
+                                            normalized_json['preview']['href'] = new
                             # append some playlist data to playlist_items so it can be merged into that file
                             if "playlist" in json_data.keys():
                                 normalized_json['partOf'] = json_data['playlist']
@@ -1129,6 +1190,21 @@ def normalize_youtube_activityStream(preservation_directories=list):
                                             subtitle_dict['type'] = "subtitle"
                                             subtitle_dict['name'] = subtitle['name']
                                             subtitle_dict['url'] = f"{filename1[:-4]}{rooty}.{subtitle['ext']}"
+                                            original = subtitle_dict['url']
+                                            new = original
+                                            for item in forbidden_list:
+                                                if item in new:
+                                                    new = new.replace(item, "")
+                                            if new != original:
+                                                old_file = os.path.join(dirpath, original)
+                                                new_file = os.path.join(dirpath, new)
+                                                old_preservation = old_file.replace('\\preservation2\\',
+                                                                                    '\\preservation1\\')
+                                                new_preservation = new_file.replace('\\preservation2\\',
+                                                                                    '\\preservation1\\')
+                                                os.rename(old_file, new_file)
+                                                os.rename(old_preservation, new_preservation)
+                                                subtitle_dict['url'] = new
                                             normalized_json['attachment'].append(subtitle_dict)
                         normalized_json = normalization_tags(normalized_json, text_block, 'youtube')
                         if "categories" in json_data.keys():
