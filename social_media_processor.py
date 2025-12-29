@@ -405,7 +405,7 @@ def make_metadata2(preservation_directories=list, social_type=str, collection_na
                                 hooky_text = hook['href']
                             if hooky_text != "":
                                 hooky_text = hooky_text.replace("#", "").replace("@", "")
-                                hooky = SubElement(metadata, f"tslac:socialMedia.{hook['type'].lower()}").text = hooky_text
+                                hooky = SubElement(metadata, f"tslac:socialmedia.{hook['type'].lower()}").text = hooky_text
                     try:
                         writer = open(metadata_file, 'wt', encoding='utf-8')
                         writer.write(prettify(metadata))
