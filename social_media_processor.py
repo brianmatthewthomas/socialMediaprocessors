@@ -75,6 +75,31 @@ def make_access_warc(upload_folder):
                             if "name" in post['preview'].keys():
                                 preview_caption = f"<br/>{post['preview']['name']}<br/>"
                             media_string = f'{media_string}<div><img class="post-photo" src="{post["preview"]["href"]}"/>{preview_caption}<br/><hr/></div>'
+                        if "items" in post.keys():
+                            if post['type'] == "Album":
+                                media_string = f'{media_string}<div>Post is a album, see below for attached items. There are {str(len(post["items"]))} items.</div>'
+                            if post['type'] == "Collection":
+                                media_string = f'{media_string}<div>Post is a video playlist or album, see below for attached items. There are {str(len(post["items"]))} items.</div>'
+                            for x in post['items']:
+                                attachment_caption = ""
+                                attachment_title = ""
+                                if "title" in x.keys():
+                                    attachment_title = f'<span class="itemTitle">Title: <strong>{x["title"]}</span><br/>'
+                                if "description" in x.keys():
+                                    attachment_caption = f"<br/>{x['description']}"
+                                if x['type'] == "Image":
+                                    media_file = f"./{x['url']}"
+                                    media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{media_file}"/>{attachment_caption}<br/><hr/></div>'
+                                if x['type'] == "Video":
+                                    thumbnail = ""
+                                    if "preview" in x.keys():
+                                        thumbnail = f'./{x["preview"]["url"]["href"]}'
+                                    media_extension = x['url'].split(".")[-1]
+                                    media_file = f"./{x['url']}"
+                                    if thumbnail == "":
+                                        media_string = f'{media_string}<div>{attachment_title}<video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
+                                    if thumbnail != "":
+                                        media_string = f'{media_string}<div>{attachment_title}<img class="post-photo" src="{thumbnail}"/><br/><hr/><br/><video class="post-video" controls src="{media_file}"></video>{attachment_caption}<br/><hr/></div>'
                         if "attachment" in post.keys():
                             if post['type'] == "Collection":
                                 media_string = f'{media_string}<div>Post is a video playlist or album, see below for attached items. There are {str(len(post["attachment"]))} items.</div>'
