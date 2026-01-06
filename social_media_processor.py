@@ -1547,7 +1547,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     mini_dict['type'] = "Video"
                                     mini_dict['id'] = current_media['id_str']
                                     mini_dict['media_type'] = current_media['video_info']['variants'][0]['content_type']
-                                    mini_dict['url'] = current_media['video_info']['variants'][0]['url'].split("/")[-1]
+                                    mini_dict['url'] = f"{json_data['id_str']}-{current_media['video_info']['variants'][0]['url'].split(' / ')[-1]}"
                                     if "bitrate" in current_media['video_info']['variants'][0].keys():
                                         mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
                                     mini_dict['preview'] = preview
@@ -1588,7 +1588,7 @@ def tweet_media_handler(url, filename, profile_media_directory):
     # try to locate the file in the extracted profile media and copy over
     for dirpath, dirnames, filenames in os.walk(profile_media_directory):
         for my_filename in filenames:
-            if filename.split("/")[-1].split("\\")[-1].split(".")[0] in my_filename:
+            if filename.split("/")[-1].split("\\")[-1] in my_filename:
                 my_filename = os.path.join(dirpath, my_filename)
                 shutil.copy2(my_filename, filename)
                 shutil.copystat(my_filename, filename)
@@ -1786,14 +1786,14 @@ def tweet_handler(source_folder, target_folder):
                                     media_filename = v['url'].split('.')[-1]
                                     media_filename = media_filename.split("?")[0]
                                     media_filename = f"{filepath1}{tweet['id_str']}-{v['url'].split('/')[-1].split('?')[0]}"
-                                    tweet_media_handler(v['url'], media_filename, f"{valuables['source_dir']}/tweet_media")
+                                    tweet_media_handler(v['url'], media_filename, f"{valuables['source_dir']}/tweets_media")
                                     bitrate = int(v['bitrate'])
                         # save thumbnail image with _thumb at the end to be clear what it is
                         media_filename = f"{filepath1}{media['media_url'].split('/')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweets_media")
                     else:
                         media_filename = f"{filepath1}{tweet['id_str']}-{media['media_url'].split('/')[-1].split('.')[0]}.{media['media_url'].split('.')[-1]}"
-                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
+                        tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweets_media")
                     # add thumbnail or downloaded image to a list so it doesn't get done twice
                     images.append(id)
             # start looking at the other location of media references in the json
@@ -1803,8 +1803,8 @@ def tweet_handler(source_folder, target_folder):
                     if media['id_str'] not in images:
                         if media['type'] == "photo":
                             media_filename = f"{filepath1}{media['id_str']}.{media['media_url'].split('.')[-1]}"
-                            window['-OUTPUT-'].update(f"{valuables['source_dir']}/tweet_media\n", append=True)
-                            tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweet_media")
+                            window['-OUTPUT-'].update(f"{valuables['source_dir']}/tweets_media\n", append=True)
+                            tweet_media_handler(media['media_url_https'], media_filename, f"{valuables['source_dir']}/tweets_media")
     with open(f"{baseline}log_tweetIDs.txt", "a") as f:
         for item in id_list2:
             f.write(f"{item}\n")
