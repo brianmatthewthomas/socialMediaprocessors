@@ -1547,7 +1547,7 @@ def normalize_twitter_activitystream(preservation_directories=list):
                                     mini_dict['type'] = "Video"
                                     mini_dict['id'] = current_media['id_str']
                                     mini_dict['media_type'] = current_media['video_info']['variants'][0]['content_type']
-                                    mini_dict['url'] = f"{json_data['id_str']}-{current_media['video_info']['variants'][0]['url'].split(' / ')[-1]}"
+                                    mini_dict['url'] = f"{json_data['id_str']}-{current_media['video_info']['variants'][0]['url'].split('/')[-1]}"
                                     if "bitrate" in current_media['video_info']['variants'][0].keys():
                                         mini_dict['twitter:bitrate'] = current_media['video_info']['variants'][0]['bitrate']
                                     mini_dict['preview'] = preview
