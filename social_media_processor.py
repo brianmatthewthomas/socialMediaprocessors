@@ -1966,11 +1966,11 @@ def normalize_facebook_activityStream(preservation_directories=list):
                             if "title" in json_data.keys():
                                 normalized_json['summary'] = json_data['title']
                                 text_block = f"{text_block} {json_data['title']}"
-                            if "attachment" in json_data.keys():
+                            if "attachments" in json_data.keys():
                                 normalized_json['attachment'] = []
                                 location_list = []
                                 url_list = []
-                                for attachment in json_data['attachment']:
+                                for attachment in json_data['attachments']:
                                     attachment_data = attachment['data']
                                     for single_attachment in attachment_data:
                                         # reset the short dictionary
@@ -2137,7 +2137,7 @@ def facebook_correspondence(source_folder=str, target_folder=str):
 # Facebook workhorse
 def facebook_handler(source_folder=str, target_folder=str):
     window['-OUTPUT-'].update(f"processing facebook download\n", append=True)
-    my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
+    # my_precious = f"{source_folder}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
     window['-OUTPUT-'].update("processing facebook posts\n", append=True)
     window['-STATUS-'].update("Go get a cup of coffee, you deserve it\n", text_color="green2")
     valuables = {}
@@ -2162,12 +2162,25 @@ def facebook_handler(source_folder=str, target_folder=str):
     id_list2 = []
     user_data_file = f"{valuables['source_dir']}/logged_information/professional_dashboard/your_professional_dashboard_activity.json"
     user_data = {}
-    with open(user_data_file, "r") as r:
-        json_data = r.read()
-        user = json.loads(json_data)
-        username = user['prodash_activity'][0]['page_name']
-        user_data['name'] = username
-        user_data['screen_name'] = username
+    if os.path.isfile(user_data_file):
+        with open(user_data_file, "r") as r:
+            json_data = r.read()
+            user = json.loads(json_data)
+            username = user['prodash_activity'][0]['page_name']
+            user_data['name'] = username
+            user_data['screen_name'] = username
+    elif os.path.isfile(f"{valuables['source_dir']}/profile_information/profile_information/profile_information.json"):
+        user_data_file = f"{valuables['source_dir']}/profile_information/profile_information/profile_information.json"
+        if os.path.isfile(user_data_file):
+            with open(user_data_file, "r") as r:
+                json_data = r.read()
+                user = json.loads(json_data)
+                username = user['profile_v2']['username']
+                user_data['name'] = user['profile_v2']['username']
+                user_data['screen_name'] = user['profile_v2']['name']['full_name']
+    else:
+        user_data['name'] = ""
+        user_data['screen_name'] = ""
     user_id_options = [f"{valuables['source_dir']}/this_profile's_activity_across_facebook/posts/profile_posts_1.json",
                        f"{valuables['source_dir']}/this_profile's_activity_across_facebook/events/events.json",
                        f"{valuables['source_dir']}/this_profile's_activity_across_facebook/posts/videos.json",
@@ -2184,17 +2197,54 @@ def facebook_handler(source_folder=str, target_folder=str):
                     if len(filedata) > 1:
                         user_id = filedata[0].split("@[")[-1]
                         user_id_int = int(user_id)
+                    if user_id == "":
+                        filedata = r.read()
+                        filedata = filedata.split(f":274:{user_data['screen_name']}")
+                        if len(filedata) > 1:
+                            user_id = filedata[0].split("@[")[-1]
+                            user_id_int = int(user_id)
+        # if can't find userid in posts check messages
+        if user_id == "":
+            for x, y, z in os.walk(f"{valuables['source_dir']}/this_profile's_activity_across_facebook/messages"):
+                for zed in z:
+                    if zed.endswith(".json"):
+                        zed = os.path.join(x, zed)
+                        with open(zed, "r") as r:
+                            filedata = r.read()
+                            filedata = filedata.split(f":274:{username}")
+                            if len(filedata) > 1:
+                                user_id = filedata[0].split("@[")[-1]
+                                user_id_int = int(user_id)
+                            if user_id == "":
+                                filedata = r.read()
+                                filedata = filedata.split(f":274:{user_data['screen_name']}")
+                                if len(filedata) > 1:
+                                    user_id = filedata[0].split("@[")[-1]
+                                    user_id_int = int(user_id)
+        # if can't find userid in correspondence or posts look in content claimed
+        content_owner = f"{valuables['source_dir']}/this_profile's_activity_across_facebook/pages/content_you_say_belongs_to_you.json"
+        if user_id == "" and os.path.isfile(content_owner):
+            with open(content_owner, "r") as r:
+                filedata = r.read()
+                filedata_json = json.loads(filedata)
+                for label_value in filedata_json['label_values']:
+                    if label_value['label'] == "Link to content":
+                        user_id = label_value['href'].split("/")[-1]
+                        user_id_int = int(user_id)
         # if can't find the user id crash the program so can see what happened
         if user_id == "" and user_id_int == "":
+            print("unable to locate the userid")
             sys.exit()
     user_data['id'] = user_id_int
     user_data['id_str'] = user_id
     window['-OUTPUT-'].update("account data and profile data loaded\n", append=True)
+    print("account data loaded")
     # aggregate the list of files needed to process a facebook account
     my_precious_posts = f"{source_folder}/this_profile's_activity_across_facebook/posts"
     my_precious_albums = f"{source_folder}/this_profile's_activity_across_facebook/posts/album"
     my_precious_events = f"{source_folder}/this_profile's_activity_across_facebook/events"
-    my_precious_posts_list = [f for f in os.listdir(my_precious_posts) if os.path.isfile(f"{my_precious_posts}/{f}") and "facebook_editor" not in f]
+    post_exceptions = ['facebook_editor.json', 'content_sharing_links_you_have_created.json', 'edits_you_made_to_posts.json', 'places_you_have_been_tagged_in.json', 'visual_search_on_your_posts.json']
+    my_precious_posts_list = [f for f in os.listdir(my_precious_posts) if os.path.isfile(f"{my_precious_posts}/{f}") and f not in post_exceptions]
     my_precious_album_list = [f for f in os.listdir(my_precious_albums) if os.path.isfile(f"{my_precious_albums}/{f}")]
     my_precious_event_list = 'events.json'
     blank_post = {}
@@ -2279,7 +2329,7 @@ def facebook_handler(source_folder=str, target_folder=str):
                 facebook['post_type'] = "facebook_album"
                 filepath = f"{baseline}/backlog/albums/album{preciouses[:-5]}"
                 filename = f"{post_id}.txt"
-                filename = filename.replace("'", "").replace('"', '').replace(':', '')
+                filename = filename.replace("'", "").replace('"', '').replace(':', '').replace("?", "").replace('/', '')
                 master_post = f"{filepath}/{filename}"
                 create_directory(master_post)
                 master_post_text = json.loads(json.dumps(facebook))
@@ -2412,10 +2462,16 @@ def facebook_handler(source_folder=str, target_folder=str):
                     if post_id not in id_list:
                         counter = 0
                         while post_id in id_list2:
-                            if post_id.endswith(f"-{str(counter)}"):
-                                post_id = post_id[:-2]
+                            counter2 = str(counter)
+                            while len(counter2) < 2:
+                                counter2 = f"0{counter2}"
+                            if post_id.endswith(f"-{str(counter2)}"):
+                                post_id = post_id[:-3]
                             counter += 1
-                            post_id = f"{post_id}-{str(counter)}"
+                            counter2 = str(counter)
+                            while len(counter2) < 2:
+                                counter2 = f"0{counter2}"
+                            post_id = f"{post_id}-{str(counter2)}"
                         post['post_id'] = post_id
                         post['user'] = user_data
                         post['post_type'] = "facebook_post"
@@ -2440,6 +2496,18 @@ def facebook_handler(source_folder=str, target_folder=str):
                                         if not os.path.isfile(target_media):
                                             shutil.copy2(fb_media, target_media)
                                             shutil.copystat(fb_media, target_media)
+                        #add for variant attachments
+                        if "attachments" in post.keys():
+                            attachment_list = post['attachments']
+                            for attachment in attachment_list:
+                                attachment = attachment['data']
+                                for x in attachment:
+                                    if "media" in x.keys():
+                                        fb_media = f"{source_folder}/{x['media']['uri']}"
+                                        target_media = f"{filepath}/{fb_media.split('/')[-1]}"
+                                        if not os.path.isfile(target_media):
+                                            shutil.copy2(fb_media, target_media)
+                                            shutil.copystat(fb_media, target_media)
                         counter += 1
                         window['-Progress-'].update_bar(counter, total)
                         window['-OUTPUT-'].update(f"processed {post_id}\n", append=True)
@@ -2448,7 +2516,10 @@ def facebook_handler(source_folder=str, target_folder=str):
     id_list2.sort()
     with open(fb_log, "a") as w:
         for item in id_list2:
-            w.write(f"{item}\n")
+            try:
+                w.write(f"{item}\n")
+            except:
+                continue
     w.close()
     print("something")
     upload_list = list(upload_list)
