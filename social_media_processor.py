@@ -2,6 +2,7 @@ import PySimpleGUI as sg
 import zipfile
 import os
 import datetime
+import time
 import json
 import hashlib
 import shutil
@@ -255,7 +256,13 @@ def make_access_warc(upload_folder):
                         temp_url = f"http://socialmedia/{platform}/{my_list[-3]}/"
                         subprocess.run(['warcit', '-n', target_warc, temp_url, dirpath], creationflags=subprocess.CREATE_NO_WINDOW)
                         window['-OUTPUT-'].update(f"{target_warc} generated, post processing a few things and cleaning up\n", append=True)
-                        os.remove(html_filename)
+                        while os.path.isfile(html_filename):
+                            try:
+                                os.remove(html_filename)
+                                window['-OUTPUT-'].update(f"{html_filename} removed\n", append=True)
+                            except:
+                                window['-OUTPUT-'].update(f"failed to remove {html_filename}, retrying after 5 seconds\n", append=True)
+                                time.sleep(5)
                         new_metadata_file = f"{target_warc}.warc.metadata"
                         old_metadata_file = f'{html_filename[:-5]}.metadata'
                         shutil.copy2(old_metadata_file, new_metadata_file)
@@ -274,7 +281,13 @@ def make_access_warc(upload_folder):
                                 w.write(file_contents)
                             w.close()
                         f.close()
-                        os.remove(f"{target_warc}.warc.gz")
+                        while os.path.isfile(target_warc):
+                            try:
+                                os.remove(f"{target_warc}.warc.gz")
+                                window['-OUTPUT-'].update(f"{target_warc} removed\n", append=True)
+                            except:
+                                window['-OUTPUT-'].update(f"failed to remove {target_warc}, retrying after 5 seconds\n", append=True)
+                                time.sleep(5)
                         window['-OUTPUT-'].update(f"{json_filename} fully processed, moving on\n", append=True)
     window['-OUTPUT-'].update(f"finished generating access warc files, use opex compiler to create the proper package for ingest", append=True)
 
@@ -2272,13 +2285,19 @@ def facebook_handler(source_folder=str, target_folder=str):
                 date_created = str(start_date)[:10]
             print(post_id)
             if post_id not in id_list:
-                post['post_id'] = post_id
                 counter = 0
                 while post_id in id_list2:
-                    if post_id.endswith(f"-{str(counter)}"):
-                        post_id = post_id[:-2]
+                    counter2 = str(counter)
+                    while len(counter2) < 2:
+                        counter2 = f"0{counter2}"
+                    if post_id.endswith(f"-{str(counter2)}"):
+                        post_id = post_id[:-3]
                     counter += 1
-                    post_id = f"{post_id}-{str(counter)}"
+                    counter2 = str(counter)
+                    while len(counter2) < 2:
+                        counter2 = f"0{counter2}"
+                    post_id = f"{post_id}-{str(counter2)}"
+                post['post_id'] = post_id
                 post['user'] = user_data
                 post['post_type'] = "facebook_event"
                 filepath = f"{baseline}/backlog/events/{post_id[:4]}/{post_id}/"
@@ -2383,10 +2402,16 @@ def facebook_handler(source_folder=str, target_folder=str):
                         if post_id not in id_list:
                             counter = 0
                             while post_id in id_list2:
-                                if post_id.endswith(f"-{str(counter)}"):
-                                    post_id = post_id[:-2]
+                                counter2 = str(counter)
+                                while len(counter2) < 2:
+                                    counter2 = f"0{counter2}"
+                                if post_id.endswith(f"-{str(counter2)}"):
+                                    post_id = post_id[:-3]
                                 counter += 1
-                                post_id = f"{post_id}-{str(counter)}"
+                                counter2 = str(counter)
+                                while len(counter2) < 2:
+                                    counter2 = f"0{counter2}"
+                                post_id = f"{post_id}-{str(counter2)}"
                             post['post_id'] = post_id
                             post['user'] = user_data
                             post['post_type'] = "facebook_otherPhotos"
@@ -2423,10 +2448,16 @@ def facebook_handler(source_folder=str, target_folder=str):
                         if post_id not in id_list:
                             counter = 0
                             while post_id in id_list2:
-                                if post_id.endswith(f"-{str(counter)}"):
-                                    post_id = post_id[:-2]
+                                counter2 = str(counter)
+                                while len(counter2) < 2:
+                                    counter2 = f"0{counter2}"
+                                if post_id.endswith(f"-{str(counter2)}"):
+                                    post_id = post_id[:-3]
                                 counter += 1
-                                post_id = f"{post_id}-{str(counter)}"
+                                counter2 = str(counter)
+                                while len(counter2) < 2:
+                                    counter2 = f"0{counter2}"
+                                post_id = f"{post_id}-{str(counter2)}"
                             post['post_id'] = post_id
                             post['user'] = user_data
                             post['post_type'] = "facebook_video"
